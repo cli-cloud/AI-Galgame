@@ -1726,10 +1726,16 @@ class GameEngine {
       // 动态匹配情绪与表情差分立绘 (happy, blushing, sad, angry, surprised, thinking, smug, neutral)
       const emotion = (sc.expression || (isSpeaking ? (content.speakerEmotion || content.emotion) : 'neutral') || 'neutral').toLowerCase();
       let chosenRelativePath = null;
-      if (charObj.expressions && typeof charObj.expressions === 'object') {
-        chosenRelativePath = charObj.expressions[emotion] || charObj.expressions['neutral'] || charObj.spriteUrl || Object.values(charObj.expressions)[0];
+      if (charObj.expressions && typeof charObj.expressions === 'object' && charObj.expressions[emotion]) {
+        chosenRelativePath = charObj.expressions[emotion];
+      } else if (charObj.expressions && typeof charObj.expressions === 'object' && charObj.expressions['neutral']) {
+        chosenRelativePath = charObj.expressions['neutral'];
+      } else if (charObj.spriteUrl) {
+        chosenRelativePath = charObj.spriteUrl;
+      } else if (charObj.expressions && typeof charObj.expressions === 'object' && Object.values(charObj.expressions).length > 0) {
+        chosenRelativePath = Object.values(charObj.expressions)[0];
       } else {
-        chosenRelativePath = charObj.spriteUrl || charObj.avatarUrl;
+        chosenRelativePath = charObj.avatarUrl;
       }
 
       let spriteUrl = chosenRelativePath;
@@ -1754,23 +1760,13 @@ class GameEngine {
         img.src = this.generateFallbackCharacterSvg(name, isSpeaking ? '#ff69b4' : '#4a90e2');
       };
 
-      // 实时动态智能去底，确保任何黑底/白底立绘在游戏中均以真正透明 PNG 呈现
-      if (spriteUrl && !spriteUrl.startsWith('data:image/svg+xml')) {
-        Utils.makeSpriteTransparent(spriteUrl).then(transparentSrc => {
-          if (img && img.isConnected && transparentSrc) {
-            img.src = transparentSrc;
-          }
-        }).catch(() => {});
-      }
-
       spriteWrapper.appendChild(img);
-
       layer.appendChild(spriteWrapper);
     });
   }
 
   /**
-   * 生成二次元角色立绘 SVG 占位/备用图
+   * 生成二次元角色立绘 SVG 占位/备用图（纯净剪影，无悬浮遮挡黑条）
    */
   generateFallbackCharacterSvg(name, mainColor = '#ff69b4') {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="600" viewBox="0 0 360 600">
@@ -1791,8 +1787,6 @@ class GameEngine {
       <circle cx="158" cy="187" r="3" fill="#ffffff"/>
       <circle cx="208" cy="187" r="3" fill="#ffffff"/>
       <path d="M 165 220 Q 180 235 195 220" stroke="#1e293b" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <rect x="50" y="470" width="260" height="65" rx="32" fill="rgba(15, 23, 42, 0.85)" stroke="${mainColor}" stroke-width="3"/>
-      <text x="180" y="512" font-family="sans-serif" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">${name}</text>
     </svg>`;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   }
