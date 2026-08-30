@@ -2935,4 +2935,264 @@ body.theme-light .form-group textarea::placeholder { color: #6b7280; }
   color: var(--text-muted);
 }
 
+/* ========================================================
+   项目素材管理库 (Assets Gallery) 样式
+   ======================================================== */
+.modal-content.extra-large {
+  max-width: 960px;
+  width: 94%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.assets-nav-tabs {
+  margin-bottom: 14px;
+}
+
+.assets-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.assets-toolbar .toolbar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assets-toolbar .toolbar-info i {
+  color: var(--primary-color, #ff69b4);
+  font-size: 1rem;
+}
+
+.assets-toolbar .toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 角色立绘网格 */
+.sprites-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-height: calc(90vh - 230px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sprite-card {
+  background: rgba(18, 20, 32, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.22s ease;
+}
+
+.sprite-card:hover {
+  border-color: rgba(255, 105, 180, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.sprite-preview-box {
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.4) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sprite-preview-box img {
+  height: 92%;
+  width: auto;
+  max-width: 90%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+}
+
+.sprite-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.sprite-placeholder i {
+  font-size: 3rem;
+  opacity: 0.4;
+}
+
+.sprite-card-info {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.sprite-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sprite-card-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #ff9acb;
+}
+
+.sprite-card-role {
+  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.sprite-card-prompt-box {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.45;
+  max-height: 52px;
+  overflow-y: auto;
+}
+
+.sprite-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.sprite-card-actions .btn {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* 场景背景网格 */
+.backgrounds-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  max-height: calc(90vh - 230px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.bg-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  aspect-ratio: 16/9;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.bg-card:hover {
+  border-color: var(--primary-color, #ff69b4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.bg-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bg-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  transition: opacity 0.2s ease;
+}
+
+.bg-card:hover .bg-card-overlay {
+  opacity: 1;
+}
+
+.bg-card-filename {
+  font-size: 0.72rem;
+  color: #e2e8f0;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.bg-card-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.bg-card-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background 0.15s ease;
+}
+
+.bg-card-btn:hover {
+  background: var(--primary-color, #ff69b4);
+  border-color: var(--primary-color, #ff69b4);
+}
+
+.bg-card-btn.danger:hover {
+  background: #ff5252;
+  border-color: #ff5252;
+}
+
+.bg-preset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bg-preset-tags .btn-tool-pill {
+  font-size: 11px;
+}
+
+
 

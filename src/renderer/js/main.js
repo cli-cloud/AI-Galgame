@@ -332,6 +332,41 @@ class App {
     const aiExtractCharBtn = document.getElementById('ai-extract-characters-btn');
     if (aiExtractCharBtn) aiExtractCharBtn.addEventListener('click', () => this.extractCharactersWithAI());
 
+    // 素材管理 Tab 切换
+    const tabBtnSprites = document.getElementById('tab-btn-sprites');
+    if (tabBtnSprites) tabBtnSprites.addEventListener('click', () => this.switchAssetsTab('sprites'));
+
+    const tabBtnBgs = document.getElementById('tab-btn-backgrounds');
+    if (tabBtnBgs) tabBtnBgs.addEventListener('click', () => this.switchAssetsTab('backgrounds'));
+
+    // 素材管理 刷新与生成背景
+    const btnRefreshSprites = document.getElementById('btn-refresh-sprites');
+    if (btnRefreshSprites) btnRefreshSprites.addEventListener('click', () => {
+      if (this.currentAssetsProjectId) this.renderAssetsSprites(this.currentAssetsProjectId);
+    });
+
+    const btnRefreshBgs = document.getElementById('btn-refresh-backgrounds');
+    if (btnRefreshBgs) btnRefreshBgs.addEventListener('click', () => {
+      if (this.currentAssetsProjectId) this.renderAssetsBackgrounds(this.currentAssetsProjectId);
+    });
+
+    const btnOpenBgGen = document.getElementById('btn-open-bg-generator');
+    if (btnOpenBgGen) btnOpenBgGen.addEventListener('click', () => {
+      document.getElementById('bg-generate-modal')?.classList.add('active');
+    });
+
+    const btnStartGenBg = document.getElementById('btn-start-generate-bg');
+    if (btnStartGenBg) btnStartGenBg.addEventListener('click', () => this.generateCustomBackground());
+
+    // 预设背景提示词点击
+    document.querySelectorAll('.bg-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prompt = btn.getAttribute('data-prompt');
+        const customPromptInput = document.getElementById('custom-bg-prompt');
+        if (customPromptInput && prompt) customPromptInput.value = prompt;
+      });
+    });
+
     // 菜单事件监听
     window.electronAPI.onMenuAction((event, data) => {
       switch (event) {
@@ -659,6 +694,7 @@ class App {
     const menuItems = [
       { text: '开始游戏', icon: 'fa fa-play', action: () => this.startGame(projectId) },
       { text: '编辑信息', icon: 'fa fa-pen', action: () => this.editProject(projectId) },
+      { text: '素材管理', icon: 'fa fa-images', action: () => this.openProjectAssetsModal(projectId) },
       { text: '打开目录', icon: 'fa fa-folder-open', action: () => this.openProjectFolder(projectId) },
       { text: '复制项目', icon: 'fa fa-copy', action: () => this.duplicateProject(projectId) },
       { text: '导出项目', icon: 'fa fa-up-right-from-square', action: () => this.exportProject(projectId) },
@@ -1513,6 +1549,362 @@ class App {
       // 恢复按钮状态
       luckyBtn.disabled = false;
       luckyBtn.innerHTML = '<i class="fas fa-dice"></i> I\'m Feeling Lucky';
+    }
+  }
+
+  /**
+   * 打开项目素材管理模态框
+   */
+  async openProjectAssetsModal(projectId) {
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    this.currentAssetsProjectId = projectId;
+    const modal = document.getElementById('project-assets-modal');
+    const title = document.getElementById('project-assets-title');
+    if (title) title.innerHTML = `<i class="fa fa-palette"></i> 素材管理 - ${Utils.escapeHtml(project.name)}`;
+
+    // 默认激活立绘Tab
+    this.switchAssetsTab('sprites');
+
+    // 渲染立绘与背景列表
+    await this.renderAssetsSprites(projectId);
+    await this.renderAssetsBackgrounds(projectId);
+
+    if (modal) modal.classList.add('active');
+  }
+
+  /**
+   * 切换素材管理Tab
+   */
+  switchAssetsTab(tabName) {
+    const tabBtnSprites = document.getElementById('tab-btn-sprites');
+    const tabBtnBgs = document.getElementById('tab-btn-backgrounds');
+    const tabContentSprites = document.getElementById('assets-tab-sprites');
+    const tabContentBgs = document.getElementById('assets-tab-backgrounds');
+
+    if (tabName === 'sprites') {
+      tabBtnSprites?.classList.add('active');
+      tabBtnBgs?.classList.remove('active');
+      tabContentSprites?.classList.remove('hidden');
+      tabContentBgs?.classList.add('hidden');
+    } else {
+      tabBtnSprites?.classList.remove('active');
+      tabBtnBgs?.classList.add('active');
+      tabContentSprites?.classList.add('hidden');
+      tabContentBgs?.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * 渲染角色立绘管理列表
+   */
+  async renderAssetsSprites(projectId) {
+    const container = document.getElementById('sprites-gallery');
+    if (!container) return;
+    container.innerHTML = '<div class="text-muted" style="padding:20px; grid-column: 1 / -1;"><i class="fa fa-spinner fa-spin"></i> 正在读取角色库...</div>';
+
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    try {
+      const charData = await window.projectManager.readCharacters(project);
+      const characters = charData?.characters || {};
+      const charEntries = Object.entries(characters);
+
+      if (charEntries.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color: var(--text-muted);">
+            <i class="fa fa-users" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4;"></i>
+            <p>暂无角色设定。请先在【编辑信息】中添加角色或点击【AI 智能提炼角色】。</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+
+      for (const [charId, char] of charEntries) {
+        const card = document.createElement('div');
+        card.className = 'sprite-card';
+        card.setAttribute('data-char-id', charId);
+
+        let spriteSrc = '';
+        if (char.spriteUrl) {
+          const fullPath = char.spriteUrl.startsWith('assets/') ? `${project.path}/${char.spriteUrl}` : char.spriteUrl;
+          spriteSrc = window.PathUtils.toFileUrl(fullPath);
+        }
+
+        const previewHtml = spriteSrc ? `
+          <img src="${spriteSrc}" alt="${Utils.escapeHtml(char.name)}" onerror="this.parentElement.innerHTML='<div class=\\'sprite-placeholder\\'><i class=\\'fa fa-image\\'></i><span>图片丢失</span></div>'" />
+        ` : `
+          <div class="sprite-placeholder">
+            <i class="fa fa-user-circle"></i>
+            <span>暂未生成立绘</span>
+          </div>
+        `;
+
+        card.innerHTML = `
+          <div class="sprite-preview-box">${previewHtml}</div>
+          <div class="sprite-card-info">
+            <div class="sprite-card-header">
+              <span class="sprite-card-name">${Utils.escapeHtml(char.name)}</span>
+              <span class="sprite-card-role">${Utils.escapeHtml(char.role || '主要角色')}</span>
+            </div>
+            <div class="sprite-card-prompt-box" title="立绘外貌特征词">
+              ${Utils.escapeHtml(char.visualPrompt || '未设置外貌特征词')}
+            </div>
+            <div class="sprite-card-actions">
+              <button type="button" class="btn btn-primary btn-generate-sprite" data-char-id="${charId}">
+                <i class="fa fa-wand-magic-sparkles"></i> AI 生成立绘
+              </button>
+              ${spriteSrc ? `
+                <button type="button" class="btn btn-secondary btn-clear-sprite" data-char-id="${charId}" title="清除立绘">
+                  <i class="fa fa-trash"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+
+        // 绑定生成立绘事件
+        card.querySelector('.btn-generate-sprite')?.addEventListener('click', async () => {
+          await this.generateCharacterSprite(projectId, charId);
+        });
+
+        // 绑定清除立绘事件
+        card.querySelector('.btn-clear-sprite')?.addEventListener('click', async () => {
+          if (confirm(`确定要移除【${char.name}】的当前立绘吗？`)) {
+            char.spriteUrl = null;
+            await window.projectManager.writeCharacters(project, { characters });
+            await this.renderAssetsSprites(projectId);
+            Utils.showNotification('已移除立绘绑定', 'info');
+          }
+        });
+
+        container.appendChild(card);
+      }
+    } catch (e) {
+      console.error('加载角色立绘列表失败:', e);
+      container.innerHTML = '<div class="text-danger" style="padding:20px; grid-column: 1 / -1;">加载角色列表失败</div>';
+    }
+  }
+
+  /**
+   * 为指定角色 AI 生成立绘
+   */
+  async generateCharacterSprite(projectId, charId) {
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    if (!aiStatus || !aiStatus.imageConfigured) {
+      Utils.showNotification('请先在设置中配置图像生成 API', 'warning');
+      return;
+    }
+
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    const charData = await window.projectManager.readCharacters(project);
+    const char = charData?.characters?.[charId];
+    if (!char) return;
+
+    const cardEl = document.querySelector(`.sprite-card[data-char-id="${charId}"]`);
+    const btnGen = cardEl?.querySelector('.btn-generate-sprite');
+
+    try {
+      if (btnGen) {
+        btnGen.disabled = true;
+        btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 生成立绘中...';
+      }
+
+      // 构建高质量二次元立绘专用提示词 (纯白/透明背景，全身/半身二次元人设立绘)
+      const visual = char.visualPrompt || `${char.name} 二次元精致立绘`;
+      const spritePrompt = `masterpiece, highly detailed anime character sprite, isolated on clean white background, full body standing portrait of ${visual}, clean line art, visual novel character sprite, dynamic lighting, perfect anatomy, official game art style`;
+
+      const filename = `sprite_${Date.now()}_${char.name}.png`;
+      Utils.showNotification(`正在为【${char.name}】生成专属立绘，请稍候...`, 'info');
+
+      const localPath = await window.aiService.generateImage(spritePrompt, {
+        projectId: project.id,
+        filename: filename,
+        onProgress: (p) => {
+          if (btnGen && p.stage) btnGen.innerHTML = `<i class="fa fa-spinner fa-spin"></i> ${p.stage}`;
+        }
+      });
+
+      if (localPath) {
+        // 保存相对路径到角色库
+        char.spriteUrl = `assets/${filename}`;
+        await window.projectManager.writeCharacters(project, charData);
+        Utils.showNotification(`【${char.name}】立绘生成成功！`, 'success');
+        await this.renderAssetsSprites(projectId);
+      }
+    } catch (e) {
+      console.error('生成角色立绘失败:', e);
+      Utils.showNotification('立绘生成失败，请检查图像API配置与网络', 'error');
+    } finally {
+      if (btnGen) {
+        btnGen.disabled = false;
+        btnGen.innerHTML = '<i class="fa fa-wand-magic-sparkles"></i> AI 生成立绘';
+      }
+    }
+  }
+
+  /**
+   * 渲染场景背景库
+   */
+  async renderAssetsBackgrounds(projectId) {
+    const container = document.getElementById('backgrounds-gallery');
+    if (!container) return;
+    container.innerHTML = '<div class="text-muted" style="padding:20px; grid-column: 1 / -1;"><i class="fa fa-spinner fa-spin"></i> 正在扫描背景素材...</div>';
+
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    try {
+      const assetsDir = `${project.path}/assets`;
+      await window.electronAPI.fs.ensureDir(assetsDir);
+      const files = await window.electronAPI.fs.readdir(assetsDir);
+
+      // 筛选出所有图片文件
+      const imageFiles = (files || []).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f));
+
+      if (imageFiles.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color: var(--text-muted);">
+            <i class="fa fa-images" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4;"></i>
+            <p>暂无背景素材。点击上方【AI 生成新背景】为故事增添精美场景！</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+
+      imageFiles.forEach(file => {
+        const fullPath = `${assetsDir}/${file}`;
+        const fileUrl = window.PathUtils.toFileUrl(fullPath);
+
+        const card = document.createElement('div');
+        card.className = 'bg-card';
+
+        card.innerHTML = `
+          <img src="${fileUrl}" class="bg-card-img" alt="${Utils.escapeHtml(file)}" />
+          <div class="bg-card-overlay">
+            <div class="bg-card-filename">${Utils.escapeHtml(file)}</div>
+            <div class="bg-card-btns">
+              <button type="button" class="bg-card-btn btn-set-cover" title="设为此项目封面"><i class="fa fa-image"></i> 设为封面</button>
+              <button type="button" class="bg-card-btn danger btn-del-bg" title="删除素材"><i class="fa fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+
+        // 设为封面
+        card.querySelector('.btn-set-cover')?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await this.setAssetAsProjectCover(projectId, `assets/${file}`);
+        });
+
+        // 删除背景素材
+        card.querySelector('.btn-del-bg')?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (confirm(`确定要删除背景素材 ${file} 吗？`)) {
+            try {
+              await window.electronAPI.fs.unlink(fullPath);
+              Utils.showNotification('背景素材已删除', 'info');
+              await this.renderAssetsBackgrounds(projectId);
+            } catch (err) {
+              console.error('删除文件失败:', err);
+              Utils.showNotification('删除文件失败', 'error');
+            }
+          }
+        });
+
+        container.appendChild(card);
+      });
+    } catch (e) {
+      console.error('加载背景素材失败:', e);
+      container.innerHTML = '<div class="text-danger" style="padding:20px; grid-column: 1 / -1;">加载背景素材失败</div>';
+    }
+  }
+
+  /**
+   * 将指定素材设为项目封面
+   */
+  async setAssetAsProjectCover(projectId, relativePath) {
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    try {
+      // 更新首个时间线节点的 backgroundUrl
+      const timelineNodes = await window.projectManager.getTimelineHistory(projectId);
+      if (timelineNodes && timelineNodes.length > 0) {
+        const firstNode = timelineNodes[0];
+        firstNode.content.backgroundUrl = relativePath;
+        await window.electronAPI.fs.writeJson(
+          `${project.path}/timeline/${firstNode.id}.json`,
+          firstNode
+        );
+      }
+
+      await this.refreshProjectCard(projectId);
+      Utils.showNotification('已成功设为项目封面！', 'success');
+    } catch (e) {
+      console.error('设置封面失败:', e);
+      Utils.showNotification('设置封面失败', 'error');
+    }
+  }
+
+  /**
+   * AI 生成新场景背景
+   */
+  async generateCustomBackground() {
+    const promptInput = document.getElementById('custom-bg-prompt');
+    const prompt = promptInput?.value.trim();
+    if (!prompt) {
+      Utils.showNotification('请输入背景画面描述词', 'warning');
+      return;
+    }
+
+    const projectId = this.currentAssetsProjectId;
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    if (!aiStatus || !aiStatus.imageConfigured) {
+      Utils.showNotification('请先在设置中配置图像生成 API', 'warning');
+      return;
+    }
+
+    const startBtn = document.getElementById('btn-start-generate-bg');
+    try {
+      if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 正在生成背景...';
+      }
+
+      const filename = `background_${Date.now()}.png`;
+      const localPath = await window.aiService.generateImage(prompt, {
+        projectId: projectId,
+        filename: filename,
+        onProgress: (p) => {
+          if (startBtn && p.stage) startBtn.innerHTML = `<i class="fa fa-spinner fa-spin"></i> ${p.stage}`;
+        }
+      });
+
+      if (localPath) {
+        Utils.showNotification('背景生成成功并已保存到项目中！', 'success');
+        document.getElementById('bg-generate-modal')?.classList.remove('active');
+        promptInput.value = '';
+        await this.renderAssetsBackgrounds(projectId);
+      }
+    } catch (e) {
+      console.error('生成背景失败:', e);
+      Utils.showNotification('背景生成失败，请检查网络或API额度', 'error');
+    } finally {
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<i class="fa fa-paintbrush"></i> 开始生成';
+      }
     }
   }
 
@@ -3588,6 +3980,20 @@ window.renderProjectsList = async function() {
 
 window.closeBgMusicModal = function() {
   const modal = document.getElementById('bg-music-modal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+window.closeProjectAssetsModal = function() {
+  const modal = document.getElementById('project-assets-modal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+window.closeBgGenerateModal = function() {
+  const modal = document.getElementById('bg-generate-modal');
   if (modal) {
     modal.classList.remove('active');
   }

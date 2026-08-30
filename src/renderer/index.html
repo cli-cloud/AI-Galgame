@@ -292,6 +292,89 @@
             </div>
         </div>
 
+        <!-- 项目素材管理模态框 -->
+        <div id="project-assets-modal" class="modal">
+            <div class="modal-content extra-large">
+                <div class="modal-header">
+                    <h3 id="project-assets-title"><i class="fa fa-palette"></i> 项目素材管理库</h3>
+                    <button class="btn-close" onclick="closeProjectAssetsModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="overview-tabs assets-nav-tabs">
+                        <button class="tab-btn active" id="tab-btn-sprites" data-tab="sprites"><i class="fa fa-user-ninja"></i> 角色立绘库</button>
+                        <button class="tab-btn" id="tab-btn-backgrounds" data-tab="backgrounds"><i class="fa fa-mountain-sun"></i> 场景背景库</button>
+                    </div>
+
+                    <!-- Tab 1: 角色立绘管理 -->
+                    <div id="assets-tab-sprites" class="assets-tab-content active">
+                        <div class="assets-toolbar">
+                            <div class="toolbar-info">
+                                <i class="fa fa-circle-info"></i>
+                                <span>为角色生成专属二次元立绘或上传图片，生成后将在游戏剧情中自动渲染并高亮说话角色。</span>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-sprites"><i class="fa fa-rotate-right"></i> 刷新</button>
+                            </div>
+                        </div>
+                        <div id="sprites-gallery" class="sprites-gallery">
+                            <!-- 动态渲染角色立绘卡片 -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: 场景背景管理 -->
+                    <div id="assets-tab-backgrounds" class="assets-tab-content hidden">
+                        <div class="assets-toolbar">
+                            <div class="toolbar-info">
+                                <i class="fa fa-circle-info"></i>
+                                <span>浏览与生成游戏场景背景，所有生成的素材均永久保存在当前项目目录中。</span>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button type="button" class="btn btn-primary btn-sm" id="btn-open-bg-generator"><i class="fa fa-wand-magic-sparkles"></i> AI 生成新背景</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-backgrounds"><i class="fa fa-rotate-right"></i> 刷新</button>
+                            </div>
+                        </div>
+                        <div id="backgrounds-gallery" class="backgrounds-gallery">
+                            <!-- 动态渲染背景图网格 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeProjectAssetsModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI 背景生成微调弹窗 -->
+        <div id="bg-generate-modal" class="modal" style="z-index: 1100;">
+            <div class="modal-content medium">
+                <div class="modal-header">
+                    <h3><i class="fa fa-wand-magic-sparkles"></i> 生成场景背景素材</h3>
+                    <button class="btn-close" onclick="closeBgGenerateModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>快捷场景预设灵感</label>
+                        <div class="bg-preset-tags">
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="sunset anime high school classroom, golden hour sunlight through window, empty wooden desks, peaceful atmosphere, masterpiece, no characters">🌅 夕阳教室</button>
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="cherry blossom road in spring, falling sakura petals, traditional japanese school path, blue sky, cinematic lighting, no characters">🌸 樱花校道</button>
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="anime school rooftop at dusk, wire fence, orange twilight sky, distant city buildings, melancholic mood, no characters">🌇 学校天台</button>
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="cozy anime cafe interior, warm lighting, wooden tables and chairs, soft bokeh, peaceful, no characters">☕ 温馨咖啡馆</button>
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="night city street with neon lights, light rain, reflective wet asphalt, cyberpunk anime style, no characters">🌃 雨夜霓虹街道</button>
+                            <button type="button" class="btn-tool-pill bg-preset-btn" data-prompt="anime girl bedroom, cozy desk with lamp, books, warm indoor night lighting, soft bed, no characters">🛏️ 少女卧室房间</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-bg-prompt">背景画面描述词 (Prompt)</label>
+                        <textarea id="custom-bg-prompt" rows="3" placeholder="例如：sunset anime classroom, detailed desks and chalkboard, cinematic lighting, no characters"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeBgGenerateModal()">取消</button>
+                    <button type="button" id="btn-start-generate-bg" class="btn btn-primary"><i class="fa fa-paintbrush"></i> 开始生成</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 项目综合介绍对话框 -->
         <div id="project-overview-modal" class="modal">
             <div class="modal-content large">
