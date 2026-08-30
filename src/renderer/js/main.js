@@ -1744,7 +1744,7 @@ class App {
         return;
       }
 
-      // 扫描 assets 目录，自动修复未绑定的立绘文件
+      // 扫描 assets 目录，自动修复未绑定的立绘文件与自愈 Base64 格式
       const assetsDir = `${project.path}/assets`;
       let assetFiles = [];
       try {
@@ -1752,6 +1752,23 @@ class App {
         assetFiles = await window.electronAPI.fs.readdir(assetsDir);
       } catch (err) {
         console.warn('读取 assets 目录失败:', err);
+      }
+
+      // 自动自愈检测：将任何历史保存为 Base64 文本的立绘自动转为二进制 PNG
+      if (Array.isArray(assetFiles)) {
+        for (const f of assetFiles) {
+          if (f.startsWith('sprite_') && f.endsWith('.png')) {
+            try {
+              const fullPath = `${assetsDir}/${f}`;
+              const content = await window.electronAPI.fs.readFile(fullPath, 'utf8');
+              if (content && (content.startsWith('iVBORw0K') || content.includes('data:image/png;base64,'))) {
+                const b64 = content.replace(/^data:image\/png;base64,/, '').trim();
+                await window.electronAPI.fs.writeFile(fullPath, b64, 'base64');
+                console.log('✨ [AutoHeal] 成功将 Base64 立绘自愈转为二进制 PNG:', f);
+              }
+            } catch (e) {}
+          }
+        }
       }
 
       let hasAutoRepaired = false;
