@@ -1855,12 +1855,16 @@ class App {
           e.stopPropagation();
           if (confirm(`确定要删除背景素材 ${file} 吗？`)) {
             try {
-              await window.electronAPI.fs.unlink(fullPath);
-              Utils.showNotification('背景素材已删除', 'info');
+              if (window.electronAPI?.fs?.remove) {
+                await window.electronAPI.fs.remove(fullPath);
+              } else if (window.electronAPI?.fs?.unlink) {
+                await window.electronAPI.fs.unlink(fullPath);
+              }
+              Utils.showNotification('背景素材已成功删除', 'success');
               await this.renderAssetsBackgrounds(projectId);
             } catch (err) {
               console.error('删除文件失败:', err);
-              Utils.showNotification('删除文件失败', 'error');
+              Utils.showNotification('删除文件失败: ' + (err.message || err), 'error');
             }
           }
         });

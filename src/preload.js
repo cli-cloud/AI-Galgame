@@ -29,7 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     stat: (path) => ipcRenderer.invoke('fs-stat', path),
     copy: (src, dest) => ipcRenderer.invoke('fs-copy', src, dest),
     move: (src, dest) => ipcRenderer.invoke('fs-move', src, dest),
-    remove: (path) => ipcRenderer.invoke('fs-remove', path)
+    remove: (path) => ipcRenderer.invoke('fs-remove', path),
+    unlink: (path) => ipcRenderer.invoke('fs-remove', path),
+    delete: (path) => ipcRenderer.invoke('fs-remove', path)
   },
 
   // 音频分析功能
