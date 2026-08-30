@@ -402,44 +402,70 @@
 
         <!-- 后台预生成对话设置对话框 -->
         <div id="prefetch-settings-modal" class="modal" style="z-index: 1200;">
-            <div class="modal-content">
+            <div class="modal-content medium">
                 <div class="modal-header">
                     <h3><i class="fa fa-bolt" style="color: #ffd700;"></i> 后台智能预生成对话设置</h3>
                     <button class="btn-close" onclick="closePrefetchSettingsModal()" title="关闭"><i class="fa fa-xmark"></i></button>
                 </div>
-                <div class="modal-body">
-                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
                         在玩家阅读当前对话时，游戏引擎可在后台<strong>静默预生成</strong>后续对白与场景。玩家按空格或点击时即可<strong>0ms 瞬间显示</strong>，消除加载等待转圈。
                     </p>
                     <div class="form-group">
                         <label style="margin-bottom: 10px; display: block; font-weight: 600;">预生成对话深度 (预载条数)</label>
-                        <div class="prefetch-options-grid" style="display: flex; flex-direction: column; gap: 10px;">
-                            <label class="prefetch-option-label" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                        <div class="prefetch-options-grid" id="prefetch-options-container">
+                            <label class="prefetch-option-label" data-value="0">
                                 <input type="radio" name="prefetch-depth-radio" value="0" />
-                                <div>
-                                    <div style="font-weight: 600; color: #fff;">0 次（关闭预生成）</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-muted);">每次按空格/点击后才触发 AI 生成，适合节省 API 调用</div>
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">0 次（关闭预生成）</div>
+                                    <div class="prefetch-option-desc">每次按空格/点击后才触发 AI 生成，适合节省 API 调用</div>
                                 </div>
                             </label>
-                            <label class="prefetch-option-label" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                            <label class="prefetch-option-label" data-value="1">
                                 <input type="radio" name="prefetch-depth-radio" value="1" />
-                                <div>
-                                    <div style="font-weight: 600; color: #fff;">1 次（轻量预载）</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-muted);">后台仅预载下 1 幕对白，体验平稳</div>
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">1 次（轻量预载 · 1幕）</div>
+                                    <div class="prefetch-option-desc">后台仅预载下 1 幕对白，低内存消耗且体验平稳</div>
                                 </div>
                             </label>
-                            <label class="prefetch-option-label" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255, 105, 180, 0.12); border: 1px solid var(--primary-color, #ff69b4); border-radius: 8px; cursor: pointer;">
-                                <input type="radio" name="prefetch-depth-radio" value="2" checked />
-                                <div>
-                                    <div style="font-weight: 600; color: #ff69b4;">2 次（默认推荐 · 均衡流畅）✨</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-secondary);">保持后台缓冲 2 幕对话，达到零延迟连贯 Galgame 阅读体验</div>
+                            <label class="prefetch-option-label" data-value="2">
+                                <input type="radio" name="prefetch-depth-radio" value="2" />
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">2 次（默认推荐 · 均衡流畅）✨</div>
+                                    <div class="prefetch-option-desc">保持后台缓冲 2 幕对话，达到零延迟连贯 Galgame 阅读体验</div>
                                 </div>
                             </label>
-                            <label class="prefetch-option-label" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;">
+                            <label class="prefetch-option-label" data-value="3">
                                 <input type="radio" name="prefetch-depth-radio" value="3" />
-                                <div>
-                                    <div style="font-weight: 600; color: #fff;">3 次（深度预载 · 极速连贯）</div>
-                                    <div style="font-size: 0.78rem; color: var(--text-muted);">适合阅读速度极快的玩家，超前缓冲 3 幕对白</div>
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">3 次（深度预载 · 3幕）</div>
+                                    <div class="prefetch-option-desc">适合阅读速度较快的玩家，超前缓冲 3 幕对白</div>
+                                </div>
+                            </label>
+                            <label class="prefetch-option-label" data-value="5">
+                                <input type="radio" name="prefetch-depth-radio" value="5" />
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">5 次（高通量预载 · 5幕）🚀</div>
+                                    <div class="prefetch-option-desc">深度缓冲 5 幕对白，极致连贯，几乎无需任何等待</div>
+                                </div>
+                            </label>
+                            <label class="prefetch-option-label" data-value="8">
+                                <input type="radio" name="prefetch-depth-radio" value="8" />
+                                <div class="prefetch-option-content">
+                                    <div class="prefetch-option-title">8 次（超前剧情长篇缓冲 · 8幕）⚡</div>
+                                    <div class="prefetch-option-desc">长篇大段剧情全部超前生成完毕，全自动挂机/快读首选</div>
+                                </div>
+                            </label>
+                            <label class="prefetch-option-label" data-value="custom">
+                                <input type="radio" name="prefetch-depth-radio" value="custom" />
+                                <div class="prefetch-option-content" style="flex: 1;">
+                                    <div class="prefetch-option-title">自定义预载深度 ⚙️</div>
+                                    <div class="prefetch-option-desc">手动指定后台预载的幕数 (1 ~ 20)</div>
+                                    <div class="prefetch-custom-box hidden" id="prefetch-custom-box">
+                                        <span>预载条数：</span>
+                                        <input type="number" id="prefetch-custom-input" class="prefetch-custom-input" min="1" max="20" value="4" />
+                                        <span>幕</span>
+                                    </div>
                                 </div>
                             </label>
                         </div>

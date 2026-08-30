@@ -786,18 +786,80 @@ class App {
 
     const currentDepth = (project.settings && project.settings.prefetchDepth !== undefined) ? project.settings.prefetchDepth : 2;
 
-    // 选中对应单选框
+    const standardValues = [0, 1, 2, 3, 5, 8];
+    const isCustom = !standardValues.includes(currentDepth);
+
+    const labels = modal.querySelectorAll('.prefetch-option-label');
+    const customBox = modal.querySelector('#prefetch-custom-box');
+    const customInput = modal.querySelector('#prefetch-custom-input');
+
+    const updateSelectionVisuals = () => {
+      const selectedRadio = modal.querySelector('input[name="prefetch-depth-radio"]:checked');
+      labels.forEach(lbl => {
+        const radio = lbl.querySelector('input[type="radio"]');
+        if (radio && radio.checked) {
+          lbl.classList.add('selected');
+        } else {
+          lbl.classList.remove('selected');
+        }
+      });
+
+      if (selectedRadio && selectedRadio.value === 'custom') {
+        if (customBox) customBox.classList.remove('hidden');
+      } else {
+        if (customBox) customBox.classList.add('hidden');
+      }
+    };
+
+    // 选中对应单选框并监听变化
     const radios = modal.querySelectorAll('input[name="prefetch-depth-radio"]');
     radios.forEach(radio => {
-      radio.checked = (parseInt(radio.value, 10) === currentDepth);
+      if (isCustom && radio.value === 'custom') {
+        radio.checked = true;
+      } else if (!isCustom && parseInt(radio.value, 10) === currentDepth) {
+        radio.checked = true;
+      } else {
+        radio.checked = false;
+      }
+
+      radio.onchange = () => {
+        updateSelectionVisuals();
+      };
     });
+
+    // 点击 label 卡片任意区域均更新状态
+    labels.forEach(lbl => {
+      lbl.onclick = () => {
+        const radio = lbl.querySelector('input[type="radio"]');
+        if (radio) {
+          radio.checked = true;
+          updateSelectionVisuals();
+        }
+      };
+    });
+
+    if (customInput) {
+      customInput.value = isCustom ? currentDepth : 4;
+      customInput.onclick = (e) => e.stopPropagation();
+    }
+
+    updateSelectionVisuals();
 
     // 绑定保存按钮
     const saveBtn = document.getElementById('btn-save-prefetch-settings');
     if (saveBtn) {
       saveBtn.onclick = async () => {
         const selectedRadio = modal.querySelector('input[name="prefetch-depth-radio"]:checked');
-        const depth = selectedRadio ? parseInt(selectedRadio.value, 10) : 2;
+        let depth = 2;
+        if (selectedRadio) {
+          if (selectedRadio.value === 'custom') {
+            depth = parseInt(customInput?.value || '4', 10);
+            if (isNaN(depth) || depth < 0) depth = 0;
+            if (depth > 20) depth = 20;
+          } else {
+            depth = parseInt(selectedRadio.value, 10);
+          }
+        }
 
         try {
           if (!project.settings) project.settings = {};
