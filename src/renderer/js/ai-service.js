@@ -722,12 +722,25 @@ ${iotDataSection}
 
 请严格仅以JSON格式返回以下内容（不要包含任何解释或多余文本）：
 {
-  "dialogue": "对话内容（必填）",
-  "speaker": "当前说话者（如：樱 / 翔 / 旁白）",
+  "dialogue": "当前主要对白文本（必填）",
+  "speaker": "当前说话者（如：曾根美雪 / 向日葵 / 旁白）",
+  "speakerEmotion": "happy|blushing|neutral|surprised|angry|sad|thinking|smug",
+  "dialogues": [
+    {
+      "speaker": "说话者名",
+      "text": "本小节第一句对白或心理描写",
+      "emotion": "neutral"
+    },
+    {
+      "speaker": "说话者名",
+      "text": "本小节第二句对白或互动",
+      "emotion": "blushing"
+    }
+  ],
   "sceneChanged": false,
   "activeCharacters": [
     {
-      "name": "在场角色名（如：樱）",
+      "name": "在场角色名（如：曾根美雪）",
       "position": "center|left|right",
       "expression": "happy|blushing|neutral|surprised|angry|sad"
     }
@@ -759,13 +772,16 @@ ${iotDataSection}
 }
 
 要求：
-1. 对话内容要生动有趣，符合经典 Galgame/视觉小说 叙事节奏，与历史对话紧密连贯
-2. 【分支选项节奏】：常规对白推进时，choices 必须设为空数组 []，让玩家按空格或点击继续阅读；【只有】在面临剧情关键分歧点、重大抉择、提问回答等节点时（通常每 3~6 句对白才出现一次），才在 choices 中提供 2~3 个有意义的选择项
-3. 【背景画面复用】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt
-4. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）
-5. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）
-6. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦
-7. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词
+1. 对话内容要生动细腻，符合经典 Galgame/视觉小说 叙事节奏，注重角色心理描写、微表情互动与氛围烘托，与历史对话紧密连贯。
+2. 【严格控制分支选项频率（85%以上必须无选项）】：
+   - Galgame 是强叙事与剧情沉浸驱动的游戏，玩家主要通过按空格或点击连贯阅读推进故事；
+   - 【常态要求】：90% 的常规对白推进、日常交流、情感发展、剧情铺垫与场景过渡，**choices 必须保持为空数组 []**，严禁频繁出现碎片化无意义选项；
+   - 【极罕见选项】：只有在经历了充分的剧情铺垫后，面临【关键主线分歧】、【路线抉择】或【重大转折决策】时，才在 choices 中提供 2~3 个有深度影响的选择项。
+3. 【背景画面复用】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt。
+4. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）。
+5. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）。
+6. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦。
+7. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词。
 8. 确保JSON格式正确，所有必填字段都存在；不得返回不完整JSON；
 ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度，不要在故事中提及用户的心率或SRI数据' : ''}`;
 

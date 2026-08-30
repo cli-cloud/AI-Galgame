@@ -90,11 +90,20 @@ class Utils {
   }
 
   /**
-   * 将白底/浅色背景立绘智能扣除为透明背景 PNG
+   * 将黑底/白底/纯色背景立绘智能扣除为透明背景 PNG
    * @param {string} imagePathOrUrl - 本地图片路径或 URL
    * @returns {Promise<string>} 返回处理后的 Base64 数据 URL 或原图
    */
   static async makeSpriteTransparent(imagePathOrUrl) {
+    if (!imagePathOrUrl || imagePathOrUrl.startsWith('data:image/svg+xml')) {
+      return imagePathOrUrl;
+    }
+
+    Utils._transparentCache = Utils._transparentCache || new Map();
+    if (Utils._transparentCache.has(imagePathOrUrl)) {
+      return Utils._transparentCache.get(imagePathOrUrl);
+    }
+
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -111,36 +120,72 @@ class Utils {
           const imgData = ctx.getImageData(0, 0, w, h);
           const data = imgData.data;
 
-          // 采样四个角落判断背景基准色
-          const cornerIndices = [0, (w - 1) * 4, (w * (h - 1)) * 4, (w * h - 1) * 4];
-          let bgR = 0, bgG = 0, bgB = 0;
-          cornerIndices.forEach(idx => {
-            bgR += data[idx];
-            bgG += data[idx + 1];
-            bgB += data[idx + 2];
-          });
-          bgR = Math.round(bgR / 4);
-          bgG = Math.round(bgG / 4);
-          bgB = Math.round(bgB / 4);
+          // 1. 先检测模型是否已原生输出带透明通道的 PNG (若已是透明图则直接使用原图，免二次抠图)
+          let hasNativeAlpha = false;
+          for (let i = 3; i < data.length; i += 16) {
+            if (data[i] < 220) {
+              hasNativeAlpha = true;
+              break;
+            }
+          }
+          if (hasNativeAlpha) {
+            console.log('✨ 模型已原生生成真透明背景 PNG，直接复用原图');
+            Utils._transparentCache.set(imagePathOrUrl, imagePathOrUrl);
+            resolve(imagePathOrUrl);
+            return;
+          }
 
-          // 泛洪去底 (Flood-fill Alpha Matting from border)
-          // 仅从图片边缘出发扣除背景，避免误伤角色内部的高光或白色衣物！
-          const visited = new Uint8Array(w * h);
-          const queue = [];
+          // 2. 采样四个角落和边缘判断背景类型 (黑底 / 白底 / 纯色底)
+          const samplePoints = [
+            0, Math.floor(w / 2) * 4, (w - 1) * 4,
+            Math.floor(h / 2) * w * 4, (Math.floor(h / 2) * w + w - 1) * 4,
+            (h - 1) * w * 4, ((h - 1) * w + Math.floor(w / 2)) * 4, (w * h - 1) * 4
+          ];
+
+          let totalR = 0, totalG = 0, totalB = 0, count = 0;
+          samplePoints.forEach(idx => {
+            if (idx >= 0 && idx < data.length - 4) {
+              totalR += data[idx];
+              totalG += data[idx + 1];
+              totalB += data[idx + 2];
+              count++;
+            }
+          });
+
+          const bgR = Math.round(totalR / count);
+          const bgG = Math.round(totalG / count);
+          const bgB = Math.round(totalB / count);
+          const avgBrightness = (bgR + bgG + bgB) / 3;
+
+          const isDarkBg = avgBrightness < 65;
+          const isLightBg = avgBrightness > 185;
 
           const isBgPixel = (x, y) => {
             const idx = (y * w + x) * 4;
             const r = data[idx];
             const g = data[idx + 1];
             const b = data[idx + 2];
+            const a = data[idx + 3];
 
-            // 亮度极高（白底）或与角落基准色极近
-            const isNearWhite = (r > 220 && g > 220 && b > 220);
+            if (a < 10) return true; // 已经透明
+
+            const brightness = (r + g + b) / 3;
             const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-            return isNearWhite || (dist < 45);
+
+            if (isDarkBg) {
+              return brightness < 55 || dist < 65;
+            } else if (isLightBg) {
+              return brightness > 200 || dist < 65;
+            } else {
+              return dist < 50;
+            }
           };
 
-          // 将四周边界的背景像素入队
+          // 泛洪去底 (Flood-fill from all 4 borders)
+          const visited = new Uint8Array(w * h);
+          const queue = [];
+
+          // 四周边界种子入队
           for (let x = 0; x < w; x++) {
             if (isBgPixel(x, 0)) { visited[x] = 1; queue.push(x, 0); }
             if (isBgPixel(x, h - 1)) { visited[(h - 1) * w + x] = 1; queue.push(x, h - 1); }
@@ -156,7 +201,7 @@ class Utils {
             const cy = queue[head++];
             const cidx = (cy * w + cx) * 4;
             
-            // 设为完全透明
+            // 背景像素完全设为透明
             data[cidx + 3] = 0;
 
             const neighbors = [
@@ -179,7 +224,9 @@ class Utils {
           }
 
           ctx.putImageData(imgData, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
+          const resultUrl = canvas.toDataURL('image/png');
+          Utils._transparentCache.set(imagePathOrUrl, resultUrl);
+          resolve(resultUrl);
         } catch (e) {
           console.warn('智能去底失败，使用原图:', e);
           resolve(imagePathOrUrl);

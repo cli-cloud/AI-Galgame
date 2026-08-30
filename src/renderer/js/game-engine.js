@@ -16,6 +16,14 @@ class GameEngine {
     this.keyboardHandler = null;
     this.projectManager = window.projectManager; // 引用全局项目管理器
     this.hasCompletedFirstTypewriter = false; // 标记是否完成第一次打字机效果
+    
+    // 连续多句对白序列与后台预取队列
+    this.prefetchQueue = []; // 后台预生成的对白队列（0ms延迟）
+    this.isPrefetching = false;
+    this.maxPrefetchDepth = 2; // 最大后台预生成深度
+    this.currentDialogueBeats = []; // 当前幕次的多句对白序列
+    this.currentBeatIndex = 0;
+
     this.init();
   }
 
@@ -430,8 +438,15 @@ class GameEngine {
   this.currentProject.knowledgeBase = await window.projectManager.readKnowledgeBase(this.currentProject);
   this.currentProject.characters = await window.projectManager.readCharacters(this.currentProject);
 
-  // 加载当前检查点
+      // 加载当前检查点
       await this.loadCurrentCheckpoint();
+
+      // 初始化预生成深度与队列（默认2次）
+      const configuredDepth = this.currentProject.settings?.prefetchDepth;
+      this.maxPrefetchDepth = configuredDepth !== undefined ? configuredDepth : 2;
+      this.prefetchQueue = [];
+      this.isPrefetching = false;
+      console.log(`⚡ [GameEngine] 后台预生成深度已设为: ${this.maxPrefetchDepth} 次`);
 
       // 更新游戏状态
       this.gameState = 'playing';
@@ -487,54 +502,93 @@ class GameEngine {
   }
 
   /**
-   * 显示内容
+   * 显示内容（支持连续多句对白序列与即时后台预取）
    * @param {Object} content - 内容对象
    */
   async displayContent(content) {
-    const dialogueText = document.getElementById('dialogue-text');
-  const nameplate = document.getElementById('nameplate');
     const choicesContainer = document.getElementById('choices-container');
+
+    // 清空之前的内容
+    if (choicesContainer) choicesContainer.innerHTML = '';
+    this.currentChoices = [];
+    this.selectedChoiceIndex = -1;
+    this.isWaitingForChoice = false;
+
+    // 解析当前幕次的对白分段 (dialogues array 或 完整 dialogue)
+    if (Array.isArray(content.dialogues) && content.dialogues.length > 0) {
+      this.currentDialogueBeats = content.dialogues.map(d => ({
+        speaker: d.speaker || content.speaker || '',
+        text: d.text || d.dialogue || '',
+        emotion: d.emotion || d.speakerEmotion || content.speakerEmotion || 'neutral'
+      }));
+    } else {
+      this.currentDialogueBeats = [{
+        speaker: content.speaker || '',
+        text: content.dialogue || '……',
+        emotion: content.speakerEmotion || 'neutral'
+      }];
+    }
+
+    this.currentBeatIndex = 0;
+    await this.playCurrentBeat(content);
+
+    // 如果当前无需玩家做出分支选择，立即启动后台预取下一段对话
+    if (!content.choices || content.choices.length === 0) {
+      setTimeout(() => this.triggerPrefetch(), 300);
+    }
+  }
+
+  /**
+   * 播放当前对白段落中的单个 Beat
+   */
+  async playCurrentBeat(content) {
+    const dialogueText = document.getElementById('dialogue-text');
+    const nameplate = document.getElementById('nameplate');
     const spaceHint = document.getElementById('space-hint');
     const choiceHint = document.getElementById('choice-hint');
 
-    if (!dialogueText || !choicesContainer) {
-      throw new Error('游戏UI元素未找到');
-    }
+    if (!dialogueText) return;
 
-    // 清空之前的内容
-    choicesContainer.innerHTML = '';
-    this.currentChoices = [];
-    this.selectedChoiceIndex = -1;
+    const beat = (this.currentDialogueBeats && this.currentDialogueBeats[this.currentBeatIndex]) || {
+      speaker: content?.speaker || '',
+      text: content?.dialogue || '',
+      emotion: content?.speakerEmotion || 'neutral'
+    };
 
-    // 显示角色名牌（若有）
+    const isLastBeat = !this.currentDialogueBeats || this.currentBeatIndex >= this.currentDialogueBeats.length - 1;
+
+    // 1. 更新角色名牌
     if (nameplate) {
-      if (content.speaker) {
+      if (beat.speaker) {
         nameplate.classList.remove('hidden');
-        nameplate.textContent = content.speaker;
+        nameplate.textContent = beat.speaker;
       } else {
         nameplate.classList.add('hidden');
       }
     }
 
-    // 联动角色立绘独立图层，高亮并放大当前说话角色
-    await this.updateCharacterSpritesLayer(content);
+    // 2. 联动角色立绘独立图层，高亮当前说话人并切换到对应情绪差分立绘
+    await this.updateCharacterSpritesLayer({
+      speaker: beat.speaker,
+      speakerEmotion: beat.emotion,
+      emotion: beat.emotion,
+      activeCharacters: content?.activeCharacters || []
+    });
 
-    // 显示对话内容（打字机效果）
-    await this.typewriterEffect(dialogueText, content.dialogue || '无内容');
+    // 3. 打字机效果显示文字
+    await this.typewriterEffect(dialogueText, beat.text || '……');
 
-    // 显示选择项
-    if (content.choices && content.choices.length > 0) {
+    // 4. 若为最后一句且有选择项，展示选择项；否则显示空格/点击提示
+    if (isLastBeat && content?.choices && content.choices.length > 0) {
       this.currentChoices = content.choices;
       this.displayChoices(content.choices);
       this.isWaitingForChoice = true;
-      
-      // 更新提示
-      spaceHint.classList.add('hidden');
-      choiceHint.classList.remove('hidden');
+      if (spaceHint) spaceHint.classList.add('hidden');
+      if (choiceHint) choiceHint.classList.remove('hidden');
     } else {
       this.isWaitingForChoice = false;
-      spaceHint.classList.remove('hidden');
-      choiceHint.classList.add('hidden');
+      if (spaceHint) spaceHint.classList.remove('hidden');
+      if (choiceHint) choiceHint.classList.add('hidden');
     }
   }
 
@@ -608,7 +662,7 @@ class GameEngine {
   }
 
   /**
-   * 显示选择项
+   * 显示选择项并启动各分支选项的后台并发预生成
    * @param {Array} choices - 选择项数组
    */
   displayChoices(choices) {
@@ -621,6 +675,9 @@ class GameEngine {
       this.isWaitingForChoice = false;
       return;
     }
+
+    // 重置并初始化分支预取映射
+    this.branchPrefetchMap = new Map();
 
     choices.forEach((choice, index) => {
       const choiceDiv = document.createElement('div');
@@ -645,6 +702,121 @@ class GameEngine {
 
     // 不预先高亮任何选项，只有键盘或鼠标操作时才高亮
     this.selectedChoiceIndex = -1;
+
+    // 启动各分支后续对白的静默预生成
+    this.triggerBranchPrefetch(choices);
+  }
+
+  /**
+   * 后台并发预生成各个分支选项后续的故事内容（按设定深度超前全分支预载）
+   */
+  async triggerBranchPrefetch(choices) {
+    if (!Array.isArray(choices) || choices.length === 0) return;
+    if (!this.currentProject || !this.currentTimeline) return;
+    if (this.maxPrefetchDepth <= 0) return;
+
+    const baseKnowledgeBase = this.currentProject.knowledgeBase || this.currentTimeline.knowledgeBase || {};
+    const depth = this.maxPrefetchDepth || 2;
+
+    choices.forEach(async (choice, idx) => {
+      const choiceText = typeof choice === 'string' ? choice : (choice.text || `选项 ${idx + 1}`);
+      if (!choiceText) return;
+
+      if (!this.branchPrefetchMap.has(choiceText)) {
+        this.branchPrefetchMap.set(choiceText, []);
+      }
+
+      let currentKb = baseKnowledgeBase;
+      let lastDialogue = this.currentTimeline.content?.dialogue || '';
+      let lastBg = this.currentTimeline.content?.backgroundUrl || null;
+
+      for (let step = 0; step < depth; step++) {
+        // 如果玩家已经做出了选择，立即停止不必要的分支递归预生成
+        if (!this.isWaitingForChoice) break;
+
+        try {
+          console.log(`⚡ [BranchPrefetch] 正在超前预生成分支【${choiceText}】第 ${step + 1}/${depth} 幕对白...`);
+          const context = {
+            projectName: this.currentProject.name,
+            projectStyle: this.currentProject.style,
+            currentContent: lastDialogue,
+            knowledgeBase: currentKb,
+            characters: this.currentProject.characters
+          };
+
+          const aiResponse = await window.aiService.generateStoryContent(
+            context,
+            currentKb,
+            step === 0 ? choiceText : '',
+            null
+          );
+
+          if (aiResponse && (aiResponse.dialogue || aiResponse.dialogues)) {
+            const updatedKnowledgeBase = window.aiService.applyKnowledgeUpdates(
+              currentKb,
+              aiResponse.knowledgeUpdates
+            );
+            currentKb = updatedKnowledgeBase;
+            lastDialogue = aiResponse.dialogue || (aiResponse.dialogues?.[0]?.text) || '';
+
+            const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
+            let backgroundUrl = lastBg;
+
+            if (aiResponse.sceneChanged === true && targetImagePrompt) {
+              try {
+                const filename = `background_${Date.now()}_branch_${step}.png`;
+                const localPath = await window.aiService.generateImage(targetImagePrompt, {
+                  projectId: this.currentProject.id,
+                  filename: filename
+                });
+                if (localPath) {
+                  backgroundUrl = localPath;
+                  lastBg = localPath;
+                }
+              } catch (e) {
+                console.warn('分支预取背景图跳过:', e);
+              }
+            }
+
+            const prefetchedNode = {
+              id: Utils.generateId(),
+              timestamp: Date.now(),
+              content: {
+                dialogue: aiResponse.dialogue,
+                dialogues: aiResponse.dialogues || null,
+                speaker: aiResponse.speaker,
+                speakerEmotion: aiResponse.speakerEmotion || 'neutral',
+                activeCharacters: aiResponse.activeCharacters || [],
+                choices: aiResponse.choices || [],
+                imagePrompt: targetImagePrompt,
+                backgroundPrompt: aiResponse.backgroundPrompt,
+                knowledgeUpdates: aiResponse.knowledgeUpdates || {},
+                chapterSummary: aiResponse.chapterSummary,
+                backgroundUrl: backgroundUrl,
+                userChoice: step === 0 ? choiceText : ''
+              },
+              knowledgeBase: updatedKnowledgeBase,
+              charactersDelta: aiResponse.charactersDelta || null,
+              isCheckpoint: true
+            };
+
+            const branchList = this.branchPrefetchMap.get(choiceText) || [];
+            branchList.push(prefetchedNode);
+            this.branchPrefetchMap.set(choiceText, branchList);
+
+            console.log(`✅ [BranchPrefetch] 分支【${choiceText}】第 ${step + 1} 幕预生成就绪！`);
+
+            // 若本分支出现了新的子选项，则停止该分支的线性延伸
+            if (aiResponse.choices && aiResponse.choices.length > 0) {
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn(`⚡ [BranchPrefetch] 分支【${choiceText}】预生成第 ${step + 1} 幕跳过:`, err);
+          break;
+        }
+      }
+    });
   }
 
   /**
@@ -688,7 +860,7 @@ class GameEngine {
   }
 
   /**
-   * 选择特定选择项
+   * 选择特定选择项（命中分支预生成时 0ms 瞬间呈现，并继承该分支的多幕缓冲）
    * @param {number} index - 选择项索引
    */
   async selectChoice(index) {
@@ -700,19 +872,69 @@ class GameEngine {
     }
 
     const selectedChoice = this.currentChoices[index];
-    
+    const choiceText = typeof selectedChoice === 'string' ? selectedChoice : (selectedChoice.text || `选项 ${index + 1}`);
+
     try {
-      // 隐藏选择项
+      // 隐藏选择项并清空之前的线性预取队列
       this.hideChoices();
       this.isWaitingForChoice = false;
+      this.prefetchQueue = [];
 
-      // 根据选择行为执行相应操作
-  if (selectedChoice.action === 'continue') {
-        await this.generateNextContent(selectedChoice.text);
-      } else if (selectedChoice.action === 'end') {
+      // 结束游戏特殊动作
+      if (selectedChoice.action === 'end') {
         this.endGame();
+        return;
+      }
+
+      // ⚡ 1. 检查该分支是否已由后台预生成就绪（0ms 瞬间响应！）
+      if (this.branchPrefetchMap && this.branchPrefetchMap.has(choiceText)) {
+        const branchNodes = this.branchPrefetchMap.get(choiceText);
+        if (Array.isArray(branchNodes) && branchNodes.length > 0) {
+          const prefetchedNode = branchNodes.shift();
+          // 将该分支后续已预载好的多幕对白无缝移入主队列！
+          this.prefetchQueue = branchNodes;
+          this.branchPrefetchMap.clear();
+
+          console.log(`⚡ [BranchPrefetch] 命中已就绪的分支【${choiceText}】，0毫秒瞬间切换！附带后续已预载缓存: ${this.prefetchQueue.length} 幕`);
+
+          // 应用知识库和角色库增量
+          if (prefetchedNode.knowledgeBase) {
+            this.currentProject.knowledgeBase = prefetchedNode.knowledgeBase;
+            window.projectManager.writeKnowledgeBase(this.currentProject, prefetchedNode.knowledgeBase).catch(console.warn);
+          }
+          if (prefetchedNode.charactersDelta) {
+            const updatedCharacters = window.aiService.applyCharacterUpdates(this.currentProject.characters, prefetchedNode.charactersDelta);
+            this.currentProject.characters = updatedCharacters;
+            window.projectManager.writeCharacters(this.currentProject, updatedCharacters).catch(console.warn);
+          }
+
+          // 持久化时间线节点
+          await window.projectManager.saveTimelineNode(prefetchedNode);
+          this.currentTimeline = prefetchedNode;
+          this.currentProject.currentTimeline = prefetchedNode;
+          window.timeline.addNode(prefetchedNode);
+
+          // 切换场景背景（若有）
+          if (prefetchedNode.content?.backgroundUrl) {
+            const fullLocalPath = `${this.currentProject.path}/${prefetchedNode.content.backgroundUrl}`;
+            const fileUrl = window.PathUtils.toFileUrl(fullLocalPath);
+            this.setBackgroundImage(fileUrl);
+          }
+
+          // 瞬间呈现新对白内容
+          await this.displayContent(prefetchedNode.content);
+
+          // 顺势启动新分支后续对白的后台补充预取
+          setTimeout(() => this.triggerPrefetch(), 300);
+          return;
+        }
+      }
+
+      // ⚡ 2. 未命中预取时，按常规流程生成
+      this.branchPrefetchMap?.clear();
+      if (selectedChoice.action === 'continue' || !selectedChoice.action) {
+        await this.generateNextContent(choiceText);
       } else {
-        // 其他自定义行为
         await this.handleCustomAction(selectedChoice);
       }
 
@@ -925,16 +1147,163 @@ class GameEngine {
   }
 
   /**
-   * 继续故事（无选择时）
+   * 继续故事（优先推进当前段落Beat或消费后台预生成队列）
    */
   async continueStory() {
-  if (this.isWaitingForChoice || this.isGenerating) return;
+    if (this.isWaitingForChoice || this.isGenerating) return;
 
+    // 1. 如果当前节点还有未播放完的多句对白，优先推进下一句
+    if (this.currentDialogueBeats && this.currentBeatIndex < this.currentDialogueBeats.length - 1) {
+      this.currentBeatIndex++;
+      await this.playCurrentBeat(this.currentTimeline?.content || {});
+      return;
+    }
+
+    // 2. 尝试从后台预生成队列中即时提取（0毫秒无缝衔接）
+    if (this.prefetchQueue && this.prefetchQueue.length > 0) {
+      const nextNode = this.prefetchQueue.shift();
+      console.log('⚡ [Prefetch] 命中后台预生成对白，瞬间呈现！剩余预取缓存:', this.prefetchQueue.length);
+
+      // 应用知识库和角色库增量
+      if (nextNode.knowledgeBase) {
+        this.currentProject.knowledgeBase = nextNode.knowledgeBase;
+        window.projectManager.writeKnowledgeBase(this.currentProject, nextNode.knowledgeBase).catch(console.warn);
+      }
+      if (nextNode.charactersDelta) {
+        const updatedCharacters = window.aiService.applyCharacterUpdates(this.currentProject.characters, nextNode.charactersDelta);
+        this.currentProject.characters = updatedCharacters;
+        window.projectManager.writeCharacters(this.currentProject, updatedCharacters).catch(console.warn);
+      }
+
+      // 持久化时间线节点
+      await window.projectManager.saveTimelineNode(nextNode);
+      this.currentTimeline = nextNode;
+      this.currentProject.currentTimeline = nextNode;
+      window.timeline.addNode(nextNode);
+
+      // 切换场景背景（若有新图）
+      if (nextNode.content?.backgroundUrl) {
+        const fullLocalPath = `${this.currentProject.path}/${nextNode.content.backgroundUrl}`;
+        const fileUrl = window.PathUtils.toFileUrl(fullLocalPath);
+        this.setBackgroundImage(fileUrl);
+      }
+
+      // 瞬间渲染对白内容
+      await this.displayContent(nextNode.content);
+
+      // 异步补充预生成队列
+      setTimeout(() => this.triggerPrefetch(), 300);
+      return;
+    }
+
+    // 3. 预取队列为空时，回退到同步生成并显示加载提示
     try {
       await this.generateNextContent('');
     } catch (error) {
       console.error('继续故事失败:', error);
       Utils.showNotification('继续故事失败', 'error');
+    }
+  }
+
+  /**
+   * 后台异步智能预生成下 1~2 次对话（玩家阅读期间静默加载，消除等待旋转圈）
+   */
+  async triggerPrefetch() {
+    if (this.isPrefetching || this.isWaitingForChoice || this.gameState !== 'playing' || this.isGenerating) {
+      return;
+    }
+    if (this.prefetchQueue.length >= this.maxPrefetchDepth) {
+      return;
+    }
+    if (!this.currentProject || !this.currentTimeline) {
+      return;
+    }
+
+    this.isPrefetching = true;
+    try {
+      // 锚定最新的对话上下文
+      const lastNode = this.prefetchQueue.length > 0 
+        ? this.prefetchQueue[this.prefetchQueue.length - 1] 
+        : this.currentTimeline;
+
+      const knowledgeBase = this.currentProject.knowledgeBase || lastNode.knowledgeBase || {};
+      const context = {
+        projectName: this.currentProject.name,
+        projectStyle: this.currentProject.style,
+        currentContent: lastNode.content?.dialogue || '',
+        knowledgeBase: knowledgeBase,
+        characters: this.currentProject.characters
+      };
+
+      console.log(`⚡ [Prefetch] 启动后台对白预生成 (当前队列: ${this.prefetchQueue.length}/${this.maxPrefetchDepth})...`);
+
+      const aiResponse = await window.aiService.generateStoryContent(
+        context,
+        knowledgeBase,
+        '',
+        null
+      );
+
+      if (aiResponse && (aiResponse.dialogue || aiResponse.dialogues)) {
+        const updatedKnowledgeBase = window.aiService.applyKnowledgeUpdates(
+          knowledgeBase,
+          aiResponse.knowledgeUpdates
+        );
+
+        // 背景图预拉取
+        const previousBg = lastNode.content?.backgroundUrl || null;
+        const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
+        let backgroundUrl = previousBg;
+
+        if (aiResponse.sceneChanged === true && targetImagePrompt) {
+          try {
+            const filename = `background_${Date.now()}.png`;
+            const localPath = await window.aiService.generateImage(targetImagePrompt, {
+              projectId: this.currentProject.id,
+              filename: filename
+            });
+            if (localPath) backgroundUrl = localPath;
+          } catch (imgErr) {
+            console.warn('⚡ [Prefetch] 后台预取背景图跳过:', imgErr);
+          }
+        }
+
+        const prefetchedTimelineNode = {
+          id: Utils.generateId(),
+          timestamp: Date.now(),
+          content: {
+            dialogue: aiResponse.dialogue,
+            dialogues: aiResponse.dialogues || null,
+            speaker: aiResponse.speaker,
+            speakerEmotion: aiResponse.speakerEmotion || 'neutral',
+            activeCharacters: aiResponse.activeCharacters || [],
+            choices: aiResponse.choices || [],
+            imagePrompt: targetImagePrompt,
+            backgroundPrompt: aiResponse.backgroundPrompt,
+            knowledgeUpdates: aiResponse.knowledgeUpdates || {},
+            chapterSummary: aiResponse.chapterSummary,
+            backgroundUrl: backgroundUrl,
+            userChoice: ''
+          },
+          knowledgeBase: updatedKnowledgeBase,
+          charactersDelta: aiResponse.charactersDelta || null,
+          isCheckpoint: true
+        };
+
+        this.prefetchQueue.push(prefetchedTimelineNode);
+        console.log(`✅ [Prefetch] 成功预生成第 ${this.prefetchQueue.length} 个后台对白:`, (aiResponse.dialogue || '').substring(0, 25));
+
+        // 如果还可以继续预取且无分支选择，自动填充第 2 个
+        if (this.prefetchQueue.length < this.maxPrefetchDepth && (!aiResponse.choices || aiResponse.choices.length === 0)) {
+          this.isPrefetching = false;
+          setTimeout(() => this.triggerPrefetch(), 500);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('⚡ [Prefetch] 后台预取对白跳过:', err);
+    } finally {
+      this.isPrefetching = false;
     }
   }
 
@@ -1319,6 +1688,16 @@ class GameEngine {
       img.onerror = () => {
         img.src = this.generateFallbackCharacterSvg(name, isSpeaking ? '#ff69b4' : '#4a90e2');
       };
+
+      // 实时动态智能去底，确保任何黑底/白底立绘在游戏中均以真正透明 PNG 呈现
+      if (spriteUrl && !spriteUrl.startsWith('data:image/svg+xml')) {
+        Utils.makeSpriteTransparent(spriteUrl).then(transparentSrc => {
+          if (img && img.isConnected && transparentSrc) {
+            img.src = transparentSrc;
+          }
+        }).catch(() => {});
+      }
+
       spriteWrapper.appendChild(img);
 
       layer.appendChild(spriteWrapper);

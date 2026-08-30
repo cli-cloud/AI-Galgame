@@ -695,6 +695,7 @@ class App {
       { text: '开始游戏', icon: 'fa fa-play', action: () => this.startGame(projectId) },
       { text: '编辑信息', icon: 'fa fa-pen', action: () => this.editProject(projectId) },
       { text: '素材管理', icon: 'fa fa-images', action: () => this.openProjectAssetsModal(projectId) },
+      { text: '⚡ 预生成设置', icon: 'fa fa-bolt', action: () => this.openPrefetchSettingsModal(projectId) },
       { text: '打开目录', icon: 'fa fa-folder-open', action: () => this.openProjectFolder(projectId) },
       { text: '复制项目', icon: 'fa fa-copy', action: () => this.duplicateProject(projectId) },
       { text: '导出项目', icon: 'fa fa-up-right-from-square', action: () => this.exportProject(projectId) },
@@ -771,6 +772,49 @@ class App {
     setTimeout(() => {
       document.addEventListener('click', closeMenu);
     }, 10);
+  }
+
+  /**
+   * 打开后台预生成对话设置弹窗
+   */
+  openPrefetchSettingsModal(projectId) {
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    const modal = document.getElementById('prefetch-settings-modal');
+    if (!modal) return;
+
+    const currentDepth = (project.settings && project.settings.prefetchDepth !== undefined) ? project.settings.prefetchDepth : 2;
+
+    // 选中对应单选框
+    const radios = modal.querySelectorAll('input[name="prefetch-depth-radio"]');
+    radios.forEach(radio => {
+      radio.checked = (parseInt(radio.value, 10) === currentDepth);
+    });
+
+    // 绑定保存按钮
+    const saveBtn = document.getElementById('btn-save-prefetch-settings');
+    if (saveBtn) {
+      saveBtn.onclick = async () => {
+        const selectedRadio = modal.querySelector('input[name="prefetch-depth-radio"]:checked');
+        const depth = selectedRadio ? parseInt(selectedRadio.value, 10) : 2;
+
+        try {
+          if (!project.settings) project.settings = {};
+          project.settings.prefetchDepth = depth;
+
+          // 保存项目元数据
+          await window.electronAPI.fs.writeJson(`${project.path}/metadata.json`, project);
+          Utils.showNotification(`预生成设置已保存：后台缓冲 ${depth} 次对话`, 'success');
+          modal.classList.remove('active');
+        } catch (err) {
+          console.error('保存预生成设置失败:', err);
+          Utils.showNotification('保存预生成设置失败', 'error');
+        }
+      };
+    }
+
+    modal.classList.add('active');
   }
 
   /**
@@ -1783,6 +1827,14 @@ class App {
           card.querySelector('.sprite-batch-gen-btn')?.addEventListener('click', async () => {
             await this.batchGenerateExpressions(projectId, charId);
           });
+
+          // 确保预览图实时透明化显示
+          if (spriteSrc) {
+            Utils.makeSpriteTransparent(spriteSrc).then(tSrc => {
+              const imgEl = card.querySelector('.sprite-preview-box img');
+              if (imgEl && tSrc) imgEl.src = tSrc;
+            }).catch(() => {});
+          }
         };
 
         renderCardInner();
@@ -1824,9 +1876,9 @@ class App {
         btnGen.innerHTML = `<i class="fa fa-spinner fa-spin"></i> 生成【${expPreset.name}】中...`;
       }
 
-      // 构建针对特定表情的高质量二次元视觉小说立绘提示词
+      // 构建针对特定表情的高质量二次元视觉小说立绘提示词（强化透明背景 PNG 与 alpha 提示）
       const visual = char.visualPrompt || `${char.name} anime character`;
-      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, clean isolated white background, upper body portrait, waist-up, solo, 1girl, ${visual}, ${expPreset.prompt}, anime visual novel character sprite, character focus, simple background`;
+      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, pure alpha channel, 32-bit transparent PNG, upper body portrait, waist-up, solo, 1girl, ${visual}, ${expPreset.prompt}, visual novel character sprite, character focus, isolated on pure transparent background, clean cutout, no background`;
 
       const filename = `sprite_${char.name}_${expressionId}_${Date.now()}.png`;
       Utils.showNotification(`正在为【${char.name}】生成【${expPreset.name}】立绘，请稍候...`, 'info');
@@ -1840,14 +1892,17 @@ class App {
       });
 
       if (localPath) {
+        // 计算本地绝对物理路径
+        const diskFullPath = localPath.startsWith('assets/') ? `${project.path}/${localPath}` : localPath;
+
         // 自动透明抠图处理
         if (btnGen) btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 智能透明抠图中...';
         try {
-          const fileUrl = window.PathUtils.toFileUrl(localPath);
+          const fileUrl = window.PathUtils.toFileUrl(diskFullPath);
           const transparentDataUrl = await Utils.makeSpriteTransparent(fileUrl);
           if (transparentDataUrl && transparentDataUrl.startsWith('data:image/png;base64,')) {
             const base64Data = transparentDataUrl.replace(/^data:image\/png;base64,/, '');
-            await window.electronAPI.fs.writeFile(localPath, base64Data, 'base64');
+            await window.electronAPI.fs.writeFile(diskFullPath, base64Data, 'base64');
             console.log(`✅ 【${char.name}】${expPreset.name}立绘去底完成`);
           }
         } catch (mattingErr) {
@@ -4263,6 +4318,13 @@ window.closeBgGenerateModal = function() {
 
 window.closeAssetPreviewModal = function() {
   const modal = document.getElementById('asset-preview-modal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+window.closePrefetchSettingsModal = function() {
+  const modal = document.getElementById('prefetch-settings-modal');
   if (modal) {
     modal.classList.remove('active');
   }
