@@ -823,9 +823,9 @@ class GameEngine {
       let backgroundUrl = previousBg;
       let imagePromise = null;
       let filename = null;
+      const bgEl = document.getElementById('game-background');
 
       if (needsNewImage && targetImagePrompt) {
-        const bgEl = document.getElementById('game-background');
         if (bgEl) {
           bgEl.style.filter = 'blur(12px) brightness(0.85)';
         }
