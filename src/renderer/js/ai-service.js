@@ -1102,10 +1102,19 @@ ${iotDataSection ? '8. ⚠️ 生理监测数据仅用于控制内容刺激度�
       throw new Error('任务未在超时时间内完成');
     }
 
-    // OpenAI兼容：直接返回url
-    const url = data?.data?.[0]?.url || data?.output?.[0]?.url || data?.url;
+    // OpenAI 及各厂商通用灵活提取：支持 url, b64_json, images, output, choices (GPT-4o 多模态) 等格式
+    let url = data?.data?.[0]?.url || data?.output?.[0]?.url || data?.images?.[0]?.url || data?.images?.[0] || data?.url;
+    if (!url && data?.data?.[0]?.b64_json) {
+      url = `data:image/png;base64,${data.data[0].b64_json}`;
+    }
+    if (!url && data?.choices?.[0]?.message?.content) {
+      const imgMatch = data.choices[0].message.content.match(/https?:\/\/[^\s\)"']+\.(png|jpg|jpeg|webp)/i);
+      if (imgMatch) {
+        url = imgMatch[0];
+      }
+    }
     if (!url) {
-      throw new Error('图像API响应中没有图像URL');
+      throw new Error('图像 API 响应中未提取到有效的图像 URL 或 base64 数据');
     }
     if (typeof onProgress === 'function') onProgress({ stage: '完成', percent: 100 });
     return url;

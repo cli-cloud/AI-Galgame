@@ -80,7 +80,14 @@
                         
                         <div class="form-group">
                             <label for="image-model">模型名称</label>
-                            <input type="text" id="image-model" placeholder="dall-e-3">
+                            <input type="text" id="image-model" list="image-model-list" placeholder="dall-e-3 (推荐 gpt-4o / dall-e-3)">
+                            <datalist id="image-model-list">
+                                <option value="dall-e-3">OpenAI DALL-E 3 (标准推荐)</option>
+                                <option value="gpt-4o">OpenAI GPT-4o 图像生成模型</option>
+                                <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+                                <option value="dall-e-2">OpenAI DALL-E 2</option>
+                                <option value="chatgpt-4o-latest">ChatGPT-4o Latest</option>
+                            </datalist>
                         </div>
                         
                         <div class="form-group">

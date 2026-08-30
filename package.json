@@ -3,8 +3,8 @@
   "version": "1.2.0",
   "description": "ArtiMeow AI GalGamer RT - 一个实时AIGC的GalGame框架",
   "main": "src/main.js",
-  "author": "B5-Software",
-  "license": "B5-Software Free and Open Knowledge Public License Version 1.0-Permissive",
+  "author": "hanxuelei",
+  "license": "MIT",
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
     "start": "electron .",

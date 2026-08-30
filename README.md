@@ -23,7 +23,7 @@ ArtiMeow AI GalGamer RT 是一个高度可扩展的 GalGame 游戏框架。项�
 
 ### 3. 🤖 多 AI 模型协议全覆盖
 支持目前主流的各种在线大模型与本地开源大模型 API：
-- **OpenAI**：`gpt-4o-mini`, `gpt-4o`, `dall-e-3` (兼容 `/chat/completions`)
+- **OpenAI**：`gpt-4o-mini`, `gpt-4o`, `dall-e-3`, `dall-e-2`, `chatgpt-4o-latest` (文本与图像生成 API 全系列)
 - **Claude (Anthropic)**：`claude-3-5-sonnet-20241022` (原生支持 `/messages` 接口与 `x-api-key`)
 - **Google Gemini**：`gemini-2.0-flash`, `gemini-1.5-pro` (原生支持 `/models/{model}:generateContent`)
 - **Ollama**：`qwen2.5`, `llama3` (本地免 Key 部署，`/api/generate`)
@@ -174,10 +174,4 @@ npm run build -- --win --x64
 }
 ```
 
----
 
-## 📄 许可证
-
-本项目基于 **B5-Software Free and Open Knowledge Public License Version 1.0-Permissive** 开源许可。
-
-B5-Software Team 版权所有。
