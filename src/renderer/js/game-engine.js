@@ -206,6 +206,36 @@ class GameEngine {
         }
       });
     }
+
+    // 鼠标点击游戏区域或对话框推进剧情（经典 Galgame 体验）
+    const onAdvanceTrigger = (e) => {
+      // 排除点击按钮、输入框、选项、控制栏
+      if (e.target.closest('.control-btn, .hud-btn, .choice-option, .custom-input, .btn-close, .game-controls, input, button')) {
+        return;
+      }
+      if (this.gameState !== 'playing') return;
+
+      const dialogueText = document.getElementById('dialogue-text');
+      if (dialogueText && dialogueText.dataset.typing === 'true') {
+        // 若正在打字，瞬间显示完整文字
+        const full = dialogueText.dataset.fullText || '';
+        dialogueText.textContent = full;
+        dialogueText.dataset.typing = 'false';
+        if (this.currentTimeline?.content?.choices?.length > 0) {
+          this.currentChoices = this.currentTimeline.content.choices;
+          this.displayChoices(this.currentChoices);
+          this.isWaitingForChoice = true;
+        }
+      } else if (!this.isWaitingForChoice && !this.isGenerating) {
+        // 对白打字已结束，且不是等待选择状态，点击直接推进下一句对白
+        this.continueStory();
+      }
+    };
+
+    const gameArea = document.querySelector('.game-area');
+    if (gameArea) {
+      gameArea.addEventListener('click', onAdvanceTrigger);
+    }
   }
 
   /**
@@ -505,13 +535,21 @@ class GameEngine {
    */
   displayChoices(choices) {
     const container = document.getElementById('choices-container');
+    if (!container) return;
+    container.innerHTML = '';
     container.classList.remove('hidden');
+
+    if (!Array.isArray(choices) || choices.length === 0) {
+      this.isWaitingForChoice = false;
+      return;
+    }
 
     choices.forEach((choice, index) => {
       const choiceDiv = document.createElement('div');
       choiceDiv.className = 'choice-option';
-      choiceDiv.textContent = choice.text;
-      choiceDiv.setAttribute('data-choice-id', choice.id);
+      const choiceText = typeof choice === 'string' ? choice : (choice.text || `选项 ${index + 1}`);
+      choiceDiv.textContent = choiceText;
+      choiceDiv.setAttribute('data-choice-id', (choice && choice.id) ? choice.id : (index + 1));
       choiceDiv.setAttribute('data-choice-index', index);
 
       // 点击事件
@@ -770,18 +808,29 @@ class GameEngine {
         await window.projectManager.writeCharacters(this.currentProject, updatedCharacters);
       }
 
-      // 图像生成：使用解耦的纯背景提示词或备用图像提示词
-      let backgroundUrl = null;
+      // 图像生成：判断是否需要生成新背景（同一场景复用背景，避免每句对白重复画图）
+      const previousBg = this.currentTimeline?.content?.backgroundUrl || null;
+      const previousPrompt = this.currentTimeline?.content?.backgroundPrompt || this.currentTimeline?.content?.imagePrompt || null;
+      const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
+
+      // 仅在无背景、明确转场或新提示词明确且sceneChanged不为false时生成新图
+      const needsNewImage = (
+        !previousBg || 
+        aiResponse.sceneChanged === true ||
+        (targetImagePrompt && previousPrompt && targetImagePrompt !== previousPrompt && aiResponse.sceneChanged !== false)
+      );
+
+      let backgroundUrl = previousBg;
       let imagePromise = null;
       let filename = null;
-      const bgEl = document.getElementById('game-background');
-      if (bgEl) {
-        bgEl.style.filter = 'blur(12px) brightness(0.85)';
-      }
-      const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
-      if (targetImagePrompt) {
+
+      if (needsNewImage && targetImagePrompt) {
+        const bgEl = document.getElementById('game-background');
+        if (bgEl) {
+          bgEl.style.filter = 'blur(12px) brightness(0.85)';
+        }
         this.updateLoadingStage('图像生成中');
-        const hadBg = !!this.currentTimeline.content.backgroundUrl;
+        const hadBg = !!previousBg;
         
         const timestamp = Date.now();
         filename = `background_${timestamp}.png`;
@@ -811,9 +860,11 @@ class GameEngine {
             return localPath; 
           })
           .catch(err => { 
-            console.warn('图像生成失败:', err); 
-            return null; 
+            console.warn('图像生成失败，使用当前背景:', err); 
+            return previousBg; 
           });
+      } else {
+        console.log('🖼️ 场景未发生切换，沿用当前背景:', backgroundUrl);
       }
 
       // 创建新的时间线节点

@@ -203,7 +203,7 @@
 
         <!-- 项目创建/编辑对话框 -->
         <div id="project-modal" class="modal">
-            <div class="modal-content">
+            <div class="modal-content medium">
                 <div class="modal-header">
                     <h3 id="project-modal-title">新建项目</h3>
                     <button class="btn-close" onclick="closeProjectModal()" title="关闭"><i class="fa fa-xmark"></i></button>
@@ -212,19 +212,54 @@
                     <form id="project-form">
                         <div class="form-group">
                             <label for="project-name">项目名称</label>
-                            <input type="text" id="project-name" required>
+                            <input type="text" id="project-name" required placeholder="例如：次元壁 / 樱花树下的约定">
                         </div>
+
                         <div class="form-group">
-                            <label for="project-description">项目简介</label>
-                            <textarea id="project-description" rows="3"></textarea>
+                            <div class="form-header-row">
+                                <label for="project-description">项目简介</label>
+                                <div class="field-actions">
+                                    <button type="button" class="btn-tool-pill" id="lucky-desc-btn" title="随机生成简介灵感"><i class="fa fa-dice"></i> 灵感</button>
+                                    <button type="button" class="btn-tool-pill" id="expand-desc-btn" title="AI 扩写与润色"><i class="fa fa-wand-magic-sparkles"></i> 扩写</button>
+                                </div>
+                            </div>
+                            <textarea id="project-description" rows="2" placeholder="一句话概括游戏的亮点或核心梗概..."></textarea>
                         </div>
+
                         <div class="form-group">
-                            <label for="project-style">项目风格</label>
-                            <textarea id="project-style" rows="2" placeholder="描述游戏的风格、氛围、角色特点等..."></textarea>
+                            <div class="form-header-row">
+                                <label for="project-style">项目风格</label>
+                                <div class="field-actions">
+                                    <button type="button" class="btn-tool-pill" id="lucky-style-btn" title="随机填充风格设定"><i class="fa fa-dice"></i> 灵感</button>
+                                    <button type="button" class="btn-tool-pill" id="expand-style-btn" title="AI 扩写与细化"><i class="fa fa-wand-magic-sparkles"></i> 扩写</button>
+                                </div>
+                            </div>
+                            <textarea id="project-style" rows="2" placeholder="描述游戏的风格、氛围、主要人物关系、美术基调..."></textarea>
                         </div>
+
                         <div class="form-group">
-                            <label for="project-summary">故事大纲</label>
-                            <textarea id="project-summary" rows="4" placeholder="简要描述故事背景、主要情节走向..."></textarea>
+                            <div class="form-header-row">
+                                <label for="project-summary">故事大纲</label>
+                                <div class="field-actions">
+                                    <button type="button" class="btn-tool-pill" id="lucky-summary-btn" title="随机生成起承转合大纲"><i class="fa fa-dice"></i> 灵感</button>
+                                    <button type="button" class="btn-tool-pill" id="expand-summary-btn" title="AI 结合上方信息扩写大纲"><i class="fa fa-wand-magic-sparkles"></i> 扩写</button>
+                                </div>
+                            </div>
+                            <textarea id="project-summary" rows="3" placeholder="简要描述故事背景、起因、主线矛盾与可能的分支走向..."></textarea>
+                        </div>
+
+                        <!-- 主要角色设定（方便AI生成立绘与保持稳定造型） -->
+                        <div class="form-group characters-config-group">
+                            <div class="form-header-row">
+                                <label><i class="fa fa-users"></i> 主要角色特点 (AI 生成立绘造型锚点)</label>
+                                <div class="field-actions">
+                                    <button type="button" class="btn-tool-pill" id="ai-extract-characters-btn" title="根据大纲自动提炼角色外貌设定"><i class="fa fa-robot"></i> AI 智能提炼角色</button>
+                                    <button type="button" class="btn-tool-pill" id="add-character-btn" title="手动添加角色"><i class="fa fa-plus"></i> 添加角色</button>
+                                </div>
+                            </div>
+                            <div class="characters-list-container" id="modal-characters-list">
+                                <!-- 动态角色卡片列表 -->
+                            </div>
                         </div>
                     </form>
                 </div>

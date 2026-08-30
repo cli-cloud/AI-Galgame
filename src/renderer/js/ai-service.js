@@ -724,6 +724,7 @@ ${iotDataSection}
 {
   "dialogue": "对话内容（必填）",
   "speaker": "当前说话者（如：樱 / 翔 / 旁白）",
+  "sceneChanged": false,
   "activeCharacters": [
     {
       "name": "在场角色名（如：樱）",
@@ -731,7 +732,8 @@ ${iotDataSection}
       "expression": "happy|blushing|neutral|surprised|angry|sad"
     }
   ],
-  "backgroundPrompt": "纯背景画面提示词（纯场景/建筑/环境，无角色人物，如：sunset empty anime classroom, highly detailed, no characters）",
+  "choices": [],
+  "backgroundPrompt": "纯背景画面提示词（若未切换场景/未发生地点变更则填null，仅当sceneChanged为true转场时填写如：sunset empty anime classroom, highly detailed, no characters）",
   "imagePrompt": "整体场景提示词（全景备用）",
   "knowledgeUpdates": {
     "characters.角色名": "角色信息更新",
@@ -757,14 +759,15 @@ ${iotDataSection}
 }
 
 要求：
-1. 对话内容要生动有趣，符合项目风格，与历史对话保持连贯
-2. 提供2-4个有意义的选择项
-3. speaker要精确指示当前正在说话的角色姓名
-4. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）
-5. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦
-6. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词
-7. 确保JSON格式正确，所有必填字段都存在；不得返回不完整JSON；
-${iotDataSection ? '8. ⚠️ 生理监测数据仅用于控制内容刺激度，不要在故事中提及用户的心率或SRI数据' : ''}`;
+1. 对话内容要生动有趣，符合经典 Galgame/视觉小说 叙事节奏，与历史对话紧密连贯
+2. 【分支选项节奏】：常规对白推进时，choices 必须设为空数组 []，让玩家按空格或点击继续阅读；【只有】在面临剧情关键分歧点、重大抉择、提问回答等节点时（通常每 3~6 句对白才出现一次），才在 choices 中提供 2~3 个有意义的选择项
+3. 【背景画面复用】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt
+4. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）
+5. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）
+6. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦
+7. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词
+8. 确保JSON格式正确，所有必填字段都存在；不得返回不完整JSON；
+${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度，不要在故事中提及用户的心率或SRI数据' : ''}`;
 
     return prompt;
   }
@@ -1125,33 +1128,69 @@ ${iotDataSection ? '8. ⚠️ 生理监测数据仅用于控制内容刺激度�
    * @param {string} response - AI响应文本
    */
   parseAIResponse(response) {
+    if (!response || typeof response !== 'string') {
+      throw new Error('AI响应为空');
+    }
+
+    let parsed = null;
     try {
-      // 尝试直接解析JSON
-      return JSON.parse(response);
+      parsed = JSON.parse(response);
     } catch (error) {
-      // 如果直接解析失败，尝试提取JSON部分
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      // 提取被 ```json ... ``` 包裹或大括号包裹的有效 JSON
+      const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)\s*```/i) || response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        const rawJson = jsonMatch[1] || jsonMatch[0];
         try {
-          return JSON.parse(jsonMatch[0]);
+          parsed = JSON.parse(rawJson);
         } catch (innerError) {
-          console.warn('JSON提取失败:', innerError);
+          console.warn('JSON提取失败，尝试修复:', innerError);
+          let fixedResponse = rawJson
+            .replace(/,(\s*[}\]])/g, '$1') // 移除末尾多余逗号
+            .replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // 给属性名添加引号
+          try {
+            parsed = JSON.parse(fixedResponse);
+          } catch (finalError) {
+            console.error('无法修复JSON:', finalError);
+          }
         }
       }
-      
-      // 如果还是失败，尝试修复常见的JSON错误
-      let fixedResponse = response
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .replace(/,(\s*[}\]])/g, '$1') // 移除末尾多余逗号
-        .replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // 给属性名添加引号
-
-      try {
-        return JSON.parse(fixedResponse);
-      } catch (finalError) {
-        throw new Error('无法解析AI响应为有效JSON');
-      }
     }
+
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('无法解析AI响应为有效JSON');
+    }
+
+    // 智能兜底与标准化清洗
+    if (!parsed.dialogue) {
+      parsed.dialogue = parsed.text || parsed.content || parsed.message || '......';
+    }
+    if (!parsed.chapterSummary) {
+      parsed.chapterSummary = parsed.dialogue ? parsed.dialogue.substring(0, 30) : '故事进展';
+    }
+    if (!parsed.imagePrompt) {
+      parsed.imagePrompt = parsed.backgroundPrompt || parsed.image_prompt || 'anime classroom scene, high quality';
+    }
+    if (!parsed.backgroundPrompt) {
+      parsed.backgroundPrompt = parsed.imagePrompt;
+    }
+
+    // 标准化 choices 格式（兼容数组为纯文本字符串或缺属性情况）
+    if (Array.isArray(parsed.choices) && parsed.choices.length > 0) {
+      parsed.choices = parsed.choices.map((c, i) => {
+        if (typeof c === 'string') {
+          return { id: i + 1, text: c, action: 'continue' };
+        }
+        return {
+          id: c.id || (i + 1),
+          text: c.text || c.title || `选项 ${i + 1}`,
+          action: c.action || 'continue'
+        };
+      });
+    } else {
+      parsed.choices = [];
+    }
+
+    return parsed;
   }
 
   /**
@@ -1163,28 +1202,13 @@ ${iotDataSection ? '8. ⚠️ 生理监测数据仅用于控制内容刺激度�
       return false;
     }
 
-    // 检查必填字段
+    // 只要有 dialogue 和 choices 即可通过
     if (!response.dialogue || typeof response.dialogue !== 'string') {
       return false;
     }
 
-    if (!response.chapterSummary || typeof response.chapterSummary !== 'string') {
+    if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
       return false;
-    }
-
-    if (!response.imagePrompt || typeof response.imagePrompt !== 'string') {
-      return false;
-    }
-
-  if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
-      return false;
-    }
-
-    // 验证选择项格式
-    for (const choice of response.choices) {
-      if (!choice.text || !choice.id) {
-        return false;
-      }
     }
 
     return true;

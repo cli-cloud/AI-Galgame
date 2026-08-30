@@ -306,6 +306,32 @@ class App {
       luckyProjectBtn.addEventListener('click', () => this.generateLuckyProject());
     }
 
+    // 字段级 Lucky 与 扩写 按钮事件
+    const luckyDescBtn = document.getElementById('lucky-desc-btn');
+    if (luckyDescBtn) luckyDescBtn.addEventListener('click', () => this.generateFieldLucky('description'));
+
+    const expandDescBtn = document.getElementById('expand-desc-btn');
+    if (expandDescBtn) expandDescBtn.addEventListener('click', () => this.expandFieldWithAI('description'));
+
+    const luckyStyleBtn = document.getElementById('lucky-style-btn');
+    if (luckyStyleBtn) luckyStyleBtn.addEventListener('click', () => this.generateFieldLucky('style'));
+
+    const expandStyleBtn = document.getElementById('expand-style-btn');
+    if (expandStyleBtn) expandStyleBtn.addEventListener('click', () => this.expandFieldWithAI('style'));
+
+    const luckySummaryBtn = document.getElementById('lucky-summary-btn');
+    if (luckySummaryBtn) luckySummaryBtn.addEventListener('click', () => this.generateFieldLucky('summary'));
+
+    const expandSummaryBtn = document.getElementById('expand-summary-btn');
+    if (expandSummaryBtn) expandSummaryBtn.addEventListener('click', () => this.expandFieldWithAI('summary'));
+
+    // 角色管理按钮事件
+    const addCharBtn = document.getElementById('add-character-btn');
+    if (addCharBtn) addCharBtn.addEventListener('click', () => this.addCharacterCardToModal());
+
+    const aiExtractCharBtn = document.getElementById('ai-extract-characters-btn');
+    if (aiExtractCharBtn) aiExtractCharBtn.addEventListener('click', () => this.extractCharactersWithAI());
+
     // 菜单事件监听
     window.electronAPI.onMenuAction((event, data) => {
       switch (event) {
@@ -902,6 +928,333 @@ class App {
   /**
    * 显示新建项目模态框
    */
+  /**
+   * 渲染模态框中的角色卡片列表
+   */
+  renderModalCharacters(charactersMap = {}) {
+    const listContainer = document.getElementById('modal-characters-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    const entries = Object.entries(charactersMap || {});
+    if (entries.length === 0) {
+      listContainer.innerHTML = `
+        <div class="empty-characters-hint">
+          暂无角色设定。点击上方 <strong>[AI 智能提炼角色]</strong> 或 <strong>[添加角色]</strong> 配置立绘外貌特征词。
+        </div>
+      `;
+      return;
+    }
+
+    entries.forEach(([charId, char]) => {
+      this.addCharacterCardToModal(char, charId);
+    });
+  }
+
+  /**
+   * 向模态框中添加单个角色卡片
+   */
+  addCharacterCardToModal(char = {}, charId = null) {
+    const listContainer = document.getElementById('modal-characters-list');
+    if (!listContainer) return;
+
+    const emptyHint = listContainer.querySelector('.empty-characters-hint');
+    if (emptyHint) emptyHint.remove();
+
+    const id = charId || char.id || `char_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const card = document.createElement('div');
+    card.className = 'character-item-card';
+    card.setAttribute('data-char-id', id);
+
+    card.innerHTML = `
+      <div class="char-card-header">
+        <input type="text" class="char-name-input" placeholder="角色名 (如: 曾根美雪)" value="${Utils.escapeHtml(char.name || '')}" />
+        <input type="text" class="char-role-input" placeholder="身份定位 (如: 女主角/青梅竹马)" value="${Utils.escapeHtml(char.role || char.summary || '')}" />
+        <button type="button" class="btn-char-ai-prompt" title="AI 生成/润色立绘外貌特征词"><i class="fa fa-wand-magic-sparkles"></i></button>
+        <button type="button" class="btn-char-remove" title="删除角色"><i class="fa fa-trash"></i></button>
+      </div>
+      <div class="char-card-body">
+        <textarea class="char-visual-input" rows="2" placeholder="立绘外貌特征描述词 (发型/发色/瞳色/服装/神态等，如: 黑长直秀发, 紫色眼瞳, 水手服校服, 17岁二次元少女, 温柔端庄)">${Utils.escapeHtml(char.visualPrompt || '')}</textarea>
+      </div>
+    `;
+
+    // 绑定删除事件
+    card.querySelector('.btn-char-remove').addEventListener('click', () => {
+      card.remove();
+      if (listContainer.children.length === 0) {
+        this.renderModalCharacters({});
+      }
+    });
+
+    // 绑定单个角色外貌 AI 润色
+    card.querySelector('.btn-char-ai-prompt').addEventListener('click', async () => {
+      await this.polishCharacterVisualWithAI(card);
+    });
+
+    listContainer.appendChild(card);
+  }
+
+  /**
+   * 单个角色外貌 AI 润色
+   */
+  async polishCharacterVisualWithAI(cardEl) {
+    const name = cardEl.querySelector('.char-name-input').value.trim();
+    const role = cardEl.querySelector('.char-role-input').value.trim();
+    const visual = cardEl.querySelector('.char-visual-input').value.trim();
+    const projectName = document.getElementById('project-name')?.value.trim() || '';
+    const style = document.getElementById('project-style')?.value.trim() || '';
+
+    if (!name) {
+      Utils.showNotification('请先输入角色姓名', 'warning');
+      return;
+    }
+
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    if (!aiStatus || !aiStatus.textConfigured) {
+      Utils.showNotification('请先在设置中配置文本 API', 'warning');
+      return;
+    }
+
+    const btn = cardEl.querySelector('.btn-char-ai-prompt');
+    const visualInput = cardEl.querySelector('.char-visual-input');
+    try {
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+      const prompt = `请为视觉小说《${projectName}》（风格：${style}）中的角色【${name}】（定位：${role}，已知特点：${visual}）生成一段精准、细节丰富且造型稳定的二次元立绘外观描述词（包含年龄、发型发色、瞳色、服装配件、气质神态）。
+要求：简明生动，中英文兼顾或纯中文特征描述，60字以内，直接输出描述词本身，不要任何多余解释。`;
+      const res = await window.aiService.callTextAPI(prompt);
+      if (res && res.trim()) {
+        visualInput.value = res.trim().replace(/^["'`]|["'`]$/g, '');
+        Utils.showNotification(`已为【${name}】生成立绘外貌特征！`, 'success');
+      }
+    } catch (e) {
+      console.error('生成角色外貌失败:', e);
+      Utils.showNotification('生成立绘特征词失败', 'error');
+    } finally {
+      btn.innerHTML = '<i class="fa fa-wand-magic-sparkles"></i>';
+    }
+  }
+
+  /**
+   * 根据大纲与设定 AI 智能提炼主要角色
+   */
+  async extractCharactersWithAI() {
+    const name = document.getElementById('project-name')?.value.trim() || '未命名故事';
+    const desc = document.getElementById('project-description')?.value.trim() || '';
+    const style = document.getElementById('project-style')?.value.trim() || '';
+    const summary = document.getElementById('project-summary')?.value.trim() || '';
+
+    if (!desc && !style && !summary) {
+      Utils.showNotification('请先填写项目简介、风格或故事大纲', 'warning');
+      return;
+    }
+
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    if (!aiStatus || !aiStatus.textConfigured) {
+      Utils.showNotification('请先在设置中配置文本 API', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('ai-extract-characters-btn');
+    try {
+      btn.classList.add('loading');
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 提炼中...';
+
+      const prompt = `你是一个专业的 Galgame 策划师。根据以下游戏设定，提炼并设计 2~3 位最核心的主要出场角色（包括主角与主要女主角）：
+游戏名称：${name}
+项目简介：${desc}
+游戏风格：${style}
+故事大纲：${summary}
+
+请严格仅以 JSON 数组格式返回，格式如下：
+[
+  {
+    "name": "角色姓名（如：曾根美雪）",
+    "role": "身份与定位（如：女主角/青梅竹马/演剧部）",
+    "summary": "简要性格描述",
+    "visualPrompt": "用于AI稳定生成立绘的外貌描述词（包含年龄、发型发色、瞳色、服装配件、气质，如：17岁二次元少女，及腰黑长直发，紫罗兰色瞳孔，修身水手服校服，白丝过膝袜，温柔端庄）"
+  }
+]
+直接输出 JSON 数组，严禁包含任何前缀、后缀说明。`;
+
+      const res = await window.aiService.callTextAPI(prompt);
+      const jsonMatch = res.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('未解析出有效角色JSON数组');
+      const charList = JSON.parse(jsonMatch[0]);
+
+      if (Array.isArray(charList) && charList.length > 0) {
+        const charMap = {};
+        charList.forEach((c, i) => {
+          const cid = `char_${i + 1}_${Date.now()}`;
+          charMap[cid] = {
+            id: cid,
+            name: c.name || `角色${i + 1}`,
+            role: c.role || c.summary || '主要角色',
+            summary: c.summary || c.role || '',
+            visualPrompt: c.visualPrompt || `${c.name} 二次元动漫精致立绘`,
+            tags: c.role ? [c.role] : []
+          };
+        });
+        this.renderModalCharacters(charMap);
+        Utils.showNotification(`成功提炼出 ${charList.length} 位主要角色！`, 'success');
+      }
+    } catch (e) {
+      console.error('提炼角色失败:', e);
+      Utils.showNotification('AI 提炼角色失败，请稍后重试', 'error');
+    } finally {
+      btn.classList.remove('loading');
+      btn.innerHTML = '<i class="fa fa-robot"></i> AI 智能提炼角色';
+    }
+  }
+
+  /**
+   * 字段级 Lucky 灵感生成
+   */
+  async generateFieldLucky(fieldName) {
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    const projectName = document.getElementById('project-name')?.value.trim() || '';
+
+    const btnMap = {
+      description: document.getElementById('lucky-desc-btn'),
+      style: document.getElementById('lucky-style-btn'),
+      summary: document.getElementById('lucky-summary-btn')
+    };
+    const inputMap = {
+      description: document.getElementById('project-description'),
+      style: document.getElementById('project-style'),
+      summary: document.getElementById('project-summary')
+    };
+
+    const targetBtn = btnMap[fieldName];
+    const targetInput = inputMap[fieldName];
+    if (!targetInput) return;
+
+    // 若未配置AI或请求失败，使用优质预设库快速随机
+    const presets = {
+      description: [
+        '打破次元壁的二次元恋爱，与跨越屏幕的她开启不可思议的羁绊。',
+        '放学后的旧校舍里，隐藏着只有两个人知晓的永恒时间。',
+        '雨季停滞的夏日小镇，一段关于青春、秘密与救赎的心跳篇章。',
+        '被困在循环的一周中，解开命运谜团并找寻最初的爱意。',
+        '穿梭于现实与梦境边缘的视觉物语，每一次抉择都在改写世界。'
+      ],
+      style: [
+        '曾根美雪女主角，向日葵是好友，发生的唯美又带有微悬疑的三人恋爱物语。',
+        '日系唯美清新校园风，轻微治愈与心理描写，细腻温暖的赛璐璐画风。',
+        '赛博朋克与都市霓虹，悬疑解谜与浪漫日常并存，科技感光影画风。',
+        '夏日海边怀旧物语，舒缓悠扬的轻音乐基调，柔和温暖的夕阳光影。',
+        '现代都市奇幻恋爱，幽默轻快的日常互动穿插扣人心弦的超自然事件。'
+      ],
+      summary: [
+        '主角在偶然间触发了神秘机制，原本普通的校园日常被打破。青梅竹马与神秘转学生相继卷入异常事件，随着对真相的探索，隐藏在次元背后的秘密与情感纠葛逐渐浮出水面。',
+        '在一个被夏日阳光笼罩的校园中，主角与两位性格迥异的少女在旧活动室相遇。一次偶然发现的古老日记，让三人开启了探寻校园七大不可思议的奇妙冒险。',
+        '主角拥有能够看见他人心绪色彩的能力，却唯独看不透那个总是微笑的女主角。在即将到来的学园祭前夕，一段尘封的往事悄然揭晓。'
+      ]
+    };
+
+    if (!aiStatus || !aiStatus.textConfigured) {
+      const list = presets[fieldName] || [];
+      targetInput.value = list[Math.floor(Math.random() * list.length)];
+      Utils.showNotification('已随机填入创意灵感', 'info');
+      return;
+    }
+
+    try {
+      if (targetBtn) {
+        targetBtn.classList.add('loading');
+        targetBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+      }
+      const promptMap = {
+        description: `请为视觉小说项目《${projectName || '新作品'}》生成一个富有创意、吸引人的单句项目简介（40字以内）。直接输出文本。`,
+        style: `请为视觉小说项目《${projectName || '新作品'}》生成一段鲜明独特的项目风格与人物基调设定（50字以内）。直接输出文本。`,
+        summary: `请为视觉小说项目《${projectName || '新作品'}》生成一段结构完整、包含起承转合的故事大纲概要（100字左右）。直接输出文本。`
+      };
+      const res = await window.aiService.callTextAPI(promptMap[fieldName]);
+      if (res && res.trim()) {
+        targetInput.value = res.trim().replace(/^["'`]|["'`]$/g, '');
+        Utils.showNotification('灵感生成成功！', 'success');
+      }
+    } catch (e) {
+      console.warn('AI灵感生成失败，使用预设库回退:', e);
+      const list = presets[fieldName] || [];
+      targetInput.value = list[Math.floor(Math.random() * list.length)];
+      Utils.showNotification('已填入预设灵感', 'info');
+    } finally {
+      if (targetBtn) {
+        targetBtn.classList.remove('loading');
+        targetBtn.innerHTML = '<i class="fa fa-dice"></i> 灵感';
+      }
+    }
+  }
+
+  /**
+   * 字段级 AI 扩写
+   */
+  async expandFieldWithAI(fieldName) {
+    const aiStatus = window.aiService?.getConfigStatus?.();
+    if (!aiStatus || !aiStatus.textConfigured) {
+      Utils.showNotification('请先在设置中配置 AI 文本生成 API', 'warning');
+      return;
+    }
+
+    const btnMap = {
+      description: document.getElementById('expand-desc-btn'),
+      style: document.getElementById('expand-style-btn'),
+      summary: document.getElementById('expand-summary-btn')
+    };
+    const inputMap = {
+      description: document.getElementById('project-description'),
+      style: document.getElementById('project-style'),
+      summary: document.getElementById('project-summary')
+    };
+
+    const targetBtn = btnMap[fieldName];
+    const targetInput = inputMap[fieldName];
+    if (!targetInput) return;
+
+    const currentVal = targetInput.value.trim();
+    if (!currentVal) {
+      Utils.showNotification('请先在此输入框中输入简略关键词或想法，再点击扩写', 'warning');
+      return;
+    }
+
+    const name = document.getElementById('project-name')?.value.trim() || '';
+    const desc = document.getElementById('project-description')?.value.trim() || '';
+    const style = document.getElementById('project-style')?.value.trim() || '';
+
+    try {
+      if (targetBtn) {
+        targetBtn.classList.add('loading');
+        targetBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 扩写中...';
+      }
+
+      let prompt = '';
+      if (fieldName === 'description') {
+        prompt = `基于游戏名称《${name}》与用户输入的简略简介【${currentVal}】，扩写并润色为一段50字以内、生动吸引人且富有视觉小说魅力的项目简介。直接输出文本本身。`;
+      } else if (fieldName === 'style') {
+        prompt = `基于游戏《${name}》（简介：${desc}）以及用户输入的风格关键词【${currentVal}】，扩写为一段60字左右、详细具体的美术风格、角色关系与情感基调设定。直接输出文本本身。`;
+      } else if (fieldName === 'summary') {
+        prompt = `结合游戏《${name}》、简介【${desc}】、风格【${style}】，将用户的大纲草稿【${currentVal}】扩写为一段起承转合清晰、剧情跌宕起伏的完整故事主线大纲（120字左右）。直接输出文本本身。`;
+      }
+
+      const res = await window.aiService.callTextAPI(prompt);
+      if (res && res.trim()) {
+        targetInput.value = res.trim().replace(/^["'`]|["'`]$/g, '');
+        Utils.showNotification('AI 扩写完成！', 'success');
+      }
+    } catch (e) {
+      console.error('AI 扩写失败:', e);
+      Utils.showNotification('AI 扩写失败，请检查网络与API配置', 'error');
+    } finally {
+      if (targetBtn) {
+        targetBtn.classList.remove('loading');
+        targetBtn.innerHTML = '<i class="fa fa-wand-magic-sparkles"></i> 扩写';
+      }
+    }
+  }
+
+  /**
+   * 显示新建项目模态框
+   */
   showNewProjectModal() {
     const modal = document.getElementById('project-modal');
     const title = document.getElementById('project-modal-title');
@@ -911,6 +1264,7 @@ class App {
     if (modal && title && form && saveBtn) {
       title.textContent = '新建项目';
       form.reset();
+      this.renderModalCharacters({});
       saveBtn.textContent = '创建';
       saveBtn.setAttribute('data-action', 'create');
       modal.classList.add('active');
@@ -920,7 +1274,7 @@ class App {
   /**
    * 编辑项目
    */
-  editProject(projectId) {
+  async editProject(projectId) {
     const project = window.projectManager.getProjects().find(p => p.id === projectId);
     if (!project) return;
 
@@ -933,10 +1287,19 @@ class App {
       title.textContent = '编辑项目';
       
       // 填充表单
-      document.getElementById('project-name').value = project.name;
+      document.getElementById('project-name').value = project.name || '';
       document.getElementById('project-description').value = project.description || '';
       document.getElementById('project-style').value = project.style || '';
       document.getElementById('project-summary').value = project.summary || '';
+
+      // 读取并回显角色库
+      try {
+        const charData = await window.projectManager.readCharacters(project);
+        this.renderModalCharacters(charData?.characters || {});
+      } catch (e) {
+        console.warn('读取角色库失败:', e);
+        this.renderModalCharacters({});
+      }
 
       saveBtn.textContent = '保存';
       saveBtn.setAttribute('data-action', 'edit');
@@ -961,6 +1324,25 @@ class App {
       summary: document.getElementById('project-summary').value.trim()
     };
 
+    // 收集角色数据
+    const charactersObj = {};
+    document.querySelectorAll('.character-item-card').forEach((card, i) => {
+      const name = card.querySelector('.char-name-input')?.value.trim();
+      const role = card.querySelector('.char-role-input')?.value.trim() || '';
+      const visualPrompt = card.querySelector('.char-visual-input')?.value.trim() || '';
+      const charId = card.getAttribute('data-char-id') || `char_${i + 1}_${Date.now()}`;
+      if (name) {
+        charactersObj[charId] = {
+          id: charId,
+          name: name,
+          role: role,
+          summary: role,
+          visualPrompt: visualPrompt || `${name} 二次元动漫精致立绘`,
+          tags: role ? [role] : []
+        };
+      }
+    });
+
     // 验证数据
     if (!projectData.name) {
       Utils.showNotification('请输入项目名称', 'error');
@@ -973,10 +1355,26 @@ class App {
 
       if (action === 'create') {
         // 创建新项目
-        await window.projectManager.createProject(projectData);
+        const newProjId = await window.projectManager.createProject(projectData);
+        if (Object.keys(charactersObj).length > 0) {
+          const newProj = window.projectManager.getProjects().find(p => p.id === newProjId);
+          if (newProj) {
+            await window.projectManager.writeCharacters(newProj, { characters: charactersObj });
+          }
+        }
+        Utils.showNotification('项目创建成功！', 'success');
       } else if (action === 'edit') {
-        // 编辑现有项目（这里需要实现编辑功能）
-        Utils.showNotification('编辑功能待实现', 'warning');
+        // 编辑现有项目
+        const project = window.projectManager.getProjects().find(p => p.id === projectId);
+        if (project) {
+          project.name = projectData.name;
+          project.description = projectData.description;
+          project.style = projectData.style;
+          project.summary = projectData.summary;
+          await window.projectManager.saveProject(project);
+          await window.projectManager.writeCharacters(project, { characters: charactersObj });
+          Utils.showNotification('项目保存成功！', 'success');
+        }
       }
 
       // 关闭模态框
