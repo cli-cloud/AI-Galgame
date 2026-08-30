@@ -764,6 +764,10 @@ ${iotDataSection}
       "expression": "happy"
     }
   ],
+  "isEnding": false,
+  "endingType": null,
+  "endingTitle": null,
+  "endingSummary": null,
   "choices": [],
   "backgroundPrompt": "纯背景画面提示词（若未切换场景/未发生地点变更则填null，仅当sceneChanged为true转场时填写如：sunset empty anime classroom, highly detailed, no characters）",
   "imagePrompt": "整体场景提示词（全景备用）",
@@ -798,13 +802,15 @@ ${iotDataSection}
    - Galgame 是强叙事与剧情沉浸驱动的游戏，玩家主要通过按空格或点击连贯阅读推进故事；
    - 【常态要求】：90% 的常规对白推进、日常交流、情感发展、剧情铺垫与场景过渡，**choices 必须保持为空数组 []**，严禁频繁出现碎片化无意义选项；
    - 【极罕见选项】：只有在经历了充分的剧情铺垫后，面临【关键主线分歧】、【路线抉择】或【重大转折决策】时，才在 choices 中提供 2~3 个有深度影响的选择项。
-3. 【背景画面复用与异步生成】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt。
-4. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）。
-5. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）。
-6. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦。
-7. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词。
-8. 确保JSON格式正确，所有必填字段都存在；不得返回不完整JSON；
-${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度，不要在故事中提及用户的心率或SRI数据' : ''}`;
+3. 【智能结局与落幕判定 (isEnding)】：
+   - 当故事发展到真正的高潮结局、终极真相揭晓、悲剧谢幕或圆满浪漫收束时，将 isEnding 设为 true，并在 endingType 中标记结局类型（"TRUE_END" / "HAPPY_END" / "BAD_END" / "NORMAL_END"），在 endingTitle 中填写结局专属标题（如《TRUE END: 与美雪的永恒约定》），并在 endingSummary 中给出 80~150 字的结局落幕诗意评语与人生总结。若故事仍在推进中，isEnding 设为 false，endingType 设为 null。
+4. 【背景画面复用与异步生成】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt。
+5. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）。
+6. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）。
+7. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦。
+8. 首次出现新角色时在charactersDelta中定义其固定的visualPrompt外貌描述词。
+9. 【严格保证 JSON 规范】：所有字符串内严禁出现未转义的英文双引号（台词对话请使用日系书名引号「...」或中文双引号“...”），字符串内严禁直接换行（换行请用 \\n），严禁在结尾留下多余逗号。
+${iotDataSection ? '10. ⚠️ 生理监测数据仅用于控制内容刺激度，不要在故事中提及用户的心率或SRI数据' : ''}`;
 
     return prompt;
   }
@@ -1379,6 +1385,19 @@ ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度�
     const summaryMatch = raw.match(/"chapterSummary"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
     if (summaryMatch) result.chapterSummary = summaryMatch[1];
 
+    // 9. 提取结局信息 isEnding, endingType, endingTitle, endingSummary
+    const endingMatch = raw.match(/"isEnding"\s*:\s*(true|false)/i);
+    if (endingMatch) result.isEnding = endingMatch[1].toLowerCase() === 'true';
+
+    const endTypeMatch = raw.match(/"endingType"\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|null)/i);
+    if (endTypeMatch && endTypeMatch[1]) result.endingType = endTypeMatch[1].toUpperCase();
+
+    const endTitleMatch = raw.match(/"endingTitle"\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|null)/i);
+    if (endTitleMatch && endTitleMatch[1]) result.endingTitle = endTitleMatch[1];
+
+    const endSummaryMatch = raw.match(/"endingSummary"\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|null)/i);
+    if (endSummaryMatch && endSummaryMatch[1]) result.endingSummary = endSummaryMatch[1];
+
     // 兜底 dialogue
     if (!result.dialogue && result.dialogues.length > 0) {
       result.dialogue = result.dialogues.map(d => d.text).join('\n');
@@ -1392,7 +1411,7 @@ ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度�
       }
     }
 
-    console.log('🛡️ [RegexExtractor] 成功通过正则提取出完整对白数据 (总计 ' + (result.dialogues.length || 1) + ' 句对白)');
+    console.log('🛡️ [RegexExtractor] 成功通过正则提取出完整对白数据 (总计 ' + (result.dialogues.length || 1) + ' 句对白, isEnding: ' + (result.isEnding || false) + ')');
     return result;
   }
 

@@ -515,6 +515,76 @@
             </div>
         </div>
 
+        <!-- 华丽落幕与结局结算管理器 (ENDING & FIN SCREEN) -->
+        <div id="ending-curtain-modal" class="ending-curtain-modal">
+            <!-- 沉浸式粒子与落幕背景遮罩 -->
+            <div class="ending-backdrop"></div>
+            <div class="ending-particles-container" id="ending-particles"></div>
+
+            <!-- 阶段一：落幕大字动画 (THE END / FIN) -->
+            <div class="ending-fin-banner" id="ending-fin-banner" onclick="window.gameEngine.showEndingSummaryCard()">
+                <div class="fin-subtitle" id="ending-fin-type-label">—— TRUE END ——</div>
+                <h1 class="fin-title" id="ending-fin-title">Fin</h1>
+                <div class="fin-hint"><i class="fa fa-hand-pointer"></i> 点击任意处查看结局总结与历程结算...</div>
+            </div>
+
+            <!-- 阶段二：结局结算卡片 (SUMMARY & REPLAY) -->
+            <div class="ending-summary-card" id="ending-summary-card">
+                <div class="ending-card-header">
+                    <div class="ending-badge" id="ending-badge">
+                        <i class="fa fa-crown"></i> <span id="ending-badge-text">TRUE END</span>
+                    </div>
+                    <h2 class="ending-main-title" id="ending-main-title">与美雪的永恒约定</h2>
+                    <p class="ending-timestamp" id="ending-timestamp"><i class="fa fa-clock"></i> 达成时间：2026-08-30 23:05</p>
+                </div>
+
+                <div class="ending-card-body">
+                    <!-- 结局立绘/CG 剪影图 -->
+                    <div class="ending-cg-wrapper" id="ending-cg-wrapper">
+                        <img id="ending-cg-img" src="" alt="结局CG" class="ending-cg-img" />
+                        <div class="ending-cg-overlay"></div>
+                    </div>
+
+                    <!-- 结局诗意评语与历程总结 -->
+                    <div class="ending-text-block">
+                        <div class="ending-summary-text" id="ending-summary-text">
+                            夕阳西下，你们在天台许下了跨越轮回的诺言。故事在此刻画上了完美的句点，但彼此的羁绊已永驻心间。
+                        </div>
+                        <div class="ending-stats-grid">
+                            <div class="ending-stat-item">
+                                <div class="stat-num" id="ending-stat-chapters">12</div>
+                                <div class="stat-label">经历故事幕数</div>
+                            </div>
+                            <div class="ending-stat-item">
+                                <div class="stat-num" id="ending-stat-choices">4</div>
+                                <div class="stat-label">做出的关键抉择</div>
+                            </div>
+                            <div class="ending-stat-item">
+                                <div class="stat-num" id="ending-stat-chars">2</div>
+                                <div class="stat-label">在场角色数</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 结算操作按钮组 -->
+                <div class="ending-card-footer">
+                    <button type="button" class="ending-btn btn-restart" id="btn-ending-restart" onclick="window.gameEngine.restartFromBeginning()">
+                        <i class="fa fa-rotate-right"></i> 开启新的轮回 (二周目)
+                    </button>
+                    <button type="button" class="ending-btn btn-load" id="btn-ending-load" onclick="window.gameEngine.openLoadModal()">
+                        <i class="fa fa-box-archive"></i> 读取存档重选
+                    </button>
+                    <button type="button" class="ending-btn btn-timeline" id="btn-ending-timeline" onclick="window.gameEngine.openTimelineOverview()">
+                        <i class="fa fa-diagram-project"></i> 查看故事树图
+                    </button>
+                    <button type="button" class="ending-btn btn-home" id="btn-ending-home" onclick="window.gameEngine.exitGame()">
+                        <i class="fa fa-house"></i> 返回游戏主页
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 项目综合介绍对话框 -->
         <div id="project-overview-modal" class="modal">
             <div class="modal-content large">

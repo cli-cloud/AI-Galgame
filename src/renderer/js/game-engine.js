@@ -634,7 +634,14 @@ class GameEngine {
       if (choiceHint) choiceHint.classList.remove('hidden');
     } else {
       this.isWaitingForChoice = false;
-      if (spaceHint) spaceHint.classList.remove('hidden');
+      if (spaceHint) {
+        spaceHint.classList.remove('hidden');
+        if (isLastBeat && content?.isEnding) {
+          spaceHint.innerHTML = '<i class="fa fa-flag-checkered"></i> 【点击或按空格触发落幕结局】';
+        } else {
+          spaceHint.innerHTML = '点击或按空格继续';
+        }
+      }
       if (choiceHint) choiceHint.classList.add('hidden');
     }
   }
@@ -1206,7 +1213,13 @@ class GameEngine {
       return;
     }
 
-    // 2. 尝试从后台预生成队列中即时提取（0毫秒无缝衔接）
+    // 2. 如果当前节点已是结局节点 (isEnding)，触发华丽落幕动画
+    if (this.currentTimeline?.content?.isEnding) {
+      this.triggerEndingSequence(this.currentTimeline.content);
+      return;
+    }
+
+    // 3. 尝试从后台预生成队列中即时提取（0毫秒无缝衔接）
     if (this.prefetchQueue && this.prefetchQueue.length > 0) {
       const nextNode = this.prefetchQueue.shift();
       console.log('⚡ [Prefetch] 命中后台预生成对白，瞬间呈现！剩余预取缓存:', this.prefetchQueue.length);
@@ -2383,6 +2396,244 @@ class GameEngine {
       gridHtml.push(renderCardHtml(i, slotDataMap[i]));
     }
     gridContainer.innerHTML = gridHtml.join('');
+  }
+
+  /* ========================================================
+     华丽结局落幕与结算系统 (ENDING & FIN SYSTEM)
+     ======================================================== */
+
+  /**
+   * 触发结局落幕动画流程
+   */
+  async triggerEndingSequence(content) {
+    if (!content) return;
+    console.log('🌟 [GameEngine] 触发结局落幕:', content.endingType, content.endingTitle);
+
+    // 1. 停止快进与自动播放
+    this.stopSkip();
+    if (this.autoMode) this.toggleAutoMode();
+
+    // 2. 清空预载队列以防后续冲突
+    this.prefetchQueue = [];
+    this.currentEndingContent = content;
+
+    const modal = document.getElementById('ending-curtain-modal');
+    const finBanner = document.getElementById('ending-fin-banner');
+    const summaryCard = document.getElementById('ending-summary-card');
+    const finTypeLabel = document.getElementById('ending-fin-type-label');
+    const finTitle = document.getElementById('ending-fin-title');
+
+    if (!modal) return;
+
+    // 3. 格式化结局类型
+    const rawType = (content.endingType || 'TRUE_END').toUpperCase();
+    const typeLabelMap = {
+      'TRUE_END': '—— TRUE END ——',
+      'HAPPY_END': '—— HAPPY END ——',
+      'BAD_END': '—— BAD END ——',
+      'NORMAL_END': '—— NORMAL END ——'
+    };
+    if (finTypeLabel) {
+      finTypeLabel.textContent = typeLabelMap[rawType] || `—— ${rawType} ——`;
+    }
+    if (finTitle) {
+      finTitle.textContent = rawType === 'BAD_END' ? 'The End' : 'Fin';
+    }
+
+    // 4. 生成金粉星光漂浮粒子
+    this.renderEndingParticles();
+
+    // 5. 显示落幕第一阶段：FIN Banner
+    if (summaryCard) summaryCard.classList.remove('active');
+    if (finBanner) finBanner.classList.remove('hidden');
+    modal.classList.add('active');
+
+    // 6. 持久化记录结局至 project
+    await this.recordUnlockedEnding(content);
+  }
+
+  /**
+   * 渲染落幕星光金粉背景粒子
+   */
+  renderEndingParticles() {
+    const container = document.getElementById('ending-particles');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const colors = ['#fbbf24', '#fef08a', '#f472b6', '#ffffff', '#60a5fa'];
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement('div');
+      const size = Math.random() * 6 + 3;
+      const left = Math.random() * 100;
+      const top = Math.random() * 100;
+      const duration = Math.random() * 4 + 3;
+      const delay = Math.random() * 2;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      p.style.cssText = `
+        position: absolute;
+        width: ${size}px;
+        height: ${size}px;
+        left: ${left}%;
+        top: ${top}%;
+        background: ${color};
+        border-radius: 50%;
+        box-shadow: 0 0 ${size * 2}px ${color};
+        opacity: 0.8;
+      `;
+      container.appendChild(p);
+    }
+  }
+
+  /**
+   * 切换到阶段二：展示结局详细结算卡片
+   */
+  async showEndingSummaryCard() {
+    const finBanner = document.getElementById('ending-fin-banner');
+    const summaryCard = document.getElementById('ending-summary-card');
+    const content = this.currentEndingContent || this.currentTimeline?.content || {};
+
+    if (finBanner) finBanner.classList.add('hidden');
+    if (!summaryCard) return;
+
+    // 1. 设置徽章
+    const badgeEl = document.getElementById('ending-badge');
+    const badgeTextEl = document.getElementById('ending-badge-text');
+    const rawType = (content.endingType || 'TRUE_END').toUpperCase();
+
+    const badgeClassMap = {
+      'TRUE_END': 'true-end',
+      'HAPPY_END': 'happy-end',
+      'BAD_END': 'bad-end',
+      'NORMAL_END': 'normal-end'
+    };
+    const badgeNameMap = {
+      'TRUE_END': 'TRUE END 真结局',
+      'HAPPY_END': 'HAPPY END 美满结局',
+      'BAD_END': 'BAD END 沉沦结局',
+      'NORMAL_END': 'NORMAL END 普通结局'
+    };
+
+    if (badgeEl) {
+      badgeEl.className = `ending-badge ${badgeClassMap[rawType] || 'true-end'}`;
+    }
+    if (badgeTextEl) {
+      badgeTextEl.textContent = badgeNameMap[rawType] || rawType;
+    }
+
+    // 2. 设置主标题与时间戳
+    const mainTitleEl = document.getElementById('ending-main-title');
+    if (mainTitleEl) {
+      mainTitleEl.textContent = content.endingTitle || (content.chapterSummary ? `《${content.chapterSummary}》` : '《命运的落幕》');
+    }
+
+    const timestampEl = document.getElementById('ending-timestamp');
+    if (timestampEl) {
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      timestampEl.innerHTML = `<i class="fa fa-clock"></i> 达成时间：${timeStr}`;
+    }
+
+    // 3. 设置结局 CG / 立绘
+    const cgImg = document.getElementById('ending-cg-img');
+    if (cgImg) {
+      let bgSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" fill="%231a1d2e"/></svg>';
+      if (content.backgroundUrl) {
+        const fullBg = content.backgroundUrl.startsWith('assets/') ? `${this.currentProject.path}/${content.backgroundUrl}` : content.backgroundUrl;
+        bgSrc = window.PathUtils.toFileUrl(fullBg);
+      }
+      cgImg.src = bgSrc;
+    }
+
+    // 4. 设置结局诗意评语
+    const summaryTextEl = document.getElementById('ending-summary-text');
+    if (summaryTextEl) {
+      summaryTextEl.textContent = content.endingSummary || content.dialogue || '历经层层抉择与波澜，故事在此刻画上了句点。';
+    }
+
+    // 5. 统计历程数据
+    const statChaptersEl = document.getElementById('ending-stat-chapters');
+    const statChoicesEl = document.getElementById('ending-stat-choices');
+    const statCharsEl = document.getElementById('ending-stat-chars');
+
+    try {
+      const timelineNodes = await this.projectManager.getTimelineNodes(this.currentProject);
+      if (statChaptersEl) statChaptersEl.textContent = timelineNodes ? timelineNodes.length : 1;
+    } catch (e) {
+      if (statChaptersEl) statChaptersEl.textContent = '1';
+    }
+
+    if (statChoicesEl) statChoicesEl.textContent = this.currentChoicesCount || 2;
+    if (statCharsEl) statCharsEl.textContent = Object.keys(this.currentProject?.characters || {}).length || 2;
+
+    // 6. 展示卡片
+    summaryCard.classList.add('active');
+  }
+
+  /**
+   * 记录已解锁结局到项目数据中
+   */
+  async recordUnlockedEnding(content) {
+    if (!this.currentProject) return;
+    try {
+      const endingsFile = `${this.currentProject.path}/endings.json`;
+      await window.electronAPI.fs.ensureDir(this.currentProject.path);
+      let endings = [];
+      if (await window.electronAPI.fs.exists(endingsFile)) {
+        endings = (await window.electronAPI.fs.readJson(endingsFile)) || [];
+      }
+
+      const newEnding = {
+        id: `ending_${Date.now()}`,
+        type: content.endingType || 'TRUE_END',
+        title: content.endingTitle || '终章落幕',
+        summary: content.endingSummary || content.dialogue || '',
+        unlockedAt: new Date().toISOString(),
+        backgroundUrl: content.backgroundUrl || null
+      };
+
+      // 避免重复记录相同标题的结局
+      if (!endings.some(e => e.title === newEnding.title && e.type === newEnding.type)) {
+        endings.push(newEnding);
+        await window.electronAPI.fs.writeJson(endingsFile, endings);
+        console.log('🏆 [GameEngine] 成功收录新结局:', newEnding.title);
+      }
+    } catch (err) {
+      console.warn('记录结局失败:', err);
+    }
+  }
+
+  /**
+   * 关闭落幕模态框
+   */
+  closeEndingModal() {
+    const modal = document.getElementById('ending-curtain-modal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  /**
+   * 开启二周目 / 重新开始新轮回
+   */
+  async restartFromBeginning() {
+    this.closeEndingModal();
+    if (!this.currentProject) return;
+    Utils.showNotification('🌀 正在重置时间线，开启新轮回...', 'info');
+    try {
+      await this.startGame(this.currentProject.id);
+    } catch (e) {
+      console.error('重启游戏失败:', e);
+    }
+  }
+
+  /**
+   * 查看时间线树图
+   */
+  openTimelineOverview() {
+    this.closeEndingModal();
+    const btnTimeline = document.getElementById('btn-timeline');
+    if (btnTimeline) {
+      btnTimeline.click();
+    }
   }
 
   /**
