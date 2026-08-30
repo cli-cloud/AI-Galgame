@@ -90,6 +90,107 @@ class Utils {
   }
 
   /**
+   * 将白底/浅色背景立绘智能扣除为透明背景 PNG
+   * @param {string} imagePathOrUrl - 本地图片路径或 URL
+   * @returns {Promise<string>} 返回处理后的 Base64 数据 URL 或原图
+   */
+  static async makeSpriteTransparent(imagePathOrUrl) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+
+          const w = canvas.width;
+          const h = canvas.height;
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+
+          // 采样四个角落判断背景基准色
+          const cornerIndices = [0, (w - 1) * 4, (w * (h - 1)) * 4, (w * h - 1) * 4];
+          let bgR = 0, bgG = 0, bgB = 0;
+          cornerIndices.forEach(idx => {
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
+          });
+          bgR = Math.round(bgR / 4);
+          bgG = Math.round(bgG / 4);
+          bgB = Math.round(bgB / 4);
+
+          // 泛洪去底 (Flood-fill Alpha Matting from border)
+          // 仅从图片边缘出发扣除背景，避免误伤角色内部的高光或白色衣物！
+          const visited = new Uint8Array(w * h);
+          const queue = [];
+
+          const isBgPixel = (x, y) => {
+            const idx = (y * w + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+
+            // 亮度极高（白底）或与角落基准色极近
+            const isNearWhite = (r > 220 && g > 220 && b > 220);
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+            return isNearWhite || (dist < 45);
+          };
+
+          // 将四周边界的背景像素入队
+          for (let x = 0; x < w; x++) {
+            if (isBgPixel(x, 0)) { visited[x] = 1; queue.push(x, 0); }
+            if (isBgPixel(x, h - 1)) { visited[(h - 1) * w + x] = 1; queue.push(x, h - 1); }
+          }
+          for (let y = 0; y < h; y++) {
+            if (isBgPixel(0, y) && !visited[y * w]) { visited[y * w] = 1; queue.push(0, y); }
+            if (isBgPixel(w - 1, y) && !visited[y * w + w - 1]) { visited[y * w + w - 1] = 1; queue.push(w - 1, y); }
+          }
+
+          let head = 0;
+          while (head < queue.length) {
+            const cx = queue[head++];
+            const cy = queue[head++];
+            const cidx = (cy * w + cx) * 4;
+            
+            // 设为完全透明
+            data[cidx + 3] = 0;
+
+            const neighbors = [
+              [cx + 1, cy],
+              [cx - 1, cy],
+              [cx, cy + 1],
+              [cx, cy - 1]
+            ];
+
+            for (let i = 0; i < 4; i++) {
+              const [nx, ny] = neighbors[i];
+              if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                const pos = ny * w + nx;
+                if (!visited[pos] && isBgPixel(nx, ny)) {
+                  visited[pos] = 1;
+                  queue.push(nx, ny);
+                }
+              }
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.warn('智能去底失败，使用原图:', e);
+          resolve(imagePathOrUrl);
+        }
+      };
+      img.onerror = () => resolve(imagePathOrUrl);
+      img.src = imagePathOrUrl;
+    });
+  }
+
+  /**
    * 验证JSON字符串
    * @param {string} str - JSON字符串
    * @returns {boolean} 是否为有效JSON

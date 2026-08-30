@@ -1622,6 +1622,31 @@ class App {
         return;
       }
 
+      // 扫描 assets 目录，自动修复未绑定的立绘文件
+      const assetsDir = `${project.path}/assets`;
+      let assetFiles = [];
+      try {
+        await window.electronAPI.fs.ensureDir(assetsDir);
+        assetFiles = await window.electronAPI.fs.readdir(assetsDir);
+      } catch (err) {
+        console.warn('读取 assets 目录失败:', err);
+      }
+
+      let hasAutoRepaired = false;
+      for (const [charId, char] of charEntries) {
+        if (!char.spriteUrl && Array.isArray(assetFiles)) {
+          // 查找匹配当前角色名字的立绘文件
+          const matched = assetFiles.find(f => f.startsWith('sprite_') && (f.includes(char.name) || f.includes(charId)));
+          if (matched) {
+            char.spriteUrl = `assets/${matched}`;
+            hasAutoRepaired = true;
+          }
+        }
+      }
+      if (hasAutoRepaired) {
+        await window.projectManager.writeCharacters(project, charData);
+      }
+
       container.innerHTML = '';
 
       for (const [charId, char] of charEntries) {
@@ -1675,8 +1700,11 @@ class App {
         // 绑定清除立绘事件
         card.querySelector('.btn-clear-sprite')?.addEventListener('click', async () => {
           if (confirm(`确定要移除【${char.name}】的当前立绘吗？`)) {
-            char.spriteUrl = null;
-            await window.projectManager.writeCharacters(project, { characters });
+            const fresh = await window.projectManager.readCharacters(project);
+            if (fresh?.characters?.[charId]) {
+              fresh.characters[charId].spriteUrl = null;
+              await window.projectManager.writeCharacters(project, fresh);
+            }
             await this.renderAssetsSprites(projectId);
             Utils.showNotification('已移除立绘绑定', 'info');
           }
@@ -1691,7 +1719,7 @@ class App {
   }
 
   /**
-   * 为指定角色 AI 生成立绘
+   * 为指定角色 AI 生成立绘并智能自动去底为透明背景
    */
   async generateCharacterSprite(projectId, charId) {
     const aiStatus = window.aiService?.getConfigStatus?.();
@@ -1716,9 +1744,9 @@ class App {
         btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 生成立绘中...';
       }
 
-      // 构建高质量二次元立绘专用提示词 (纯白/透明背景，全身/半身二次元人设立绘)
-      const visual = char.visualPrompt || `${char.name} 二次元精致立绘`;
-      const spritePrompt = `masterpiece, highly detailed anime character sprite, isolated on clean white background, full body standing portrait of ${visual}, clean line art, visual novel character sprite, dynamic lighting, perfect anatomy, official game art style`;
+      // 构建高质量二次元视觉小说立绘专用提示词 (半身/胸像，二次元人设立绘，纯净背景便去底)
+      const visual = char.visualPrompt || `${char.name} anime character`;
+      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, clean isolated white background, upper body portrait, waist-up, solo, 1girl, ${visual}, anime visual novel character sprite, character focus, simple background`;
 
       const filename = `sprite_${Date.now()}_${char.name}.png`;
       Utils.showNotification(`正在为【${char.name}】生成专属立绘，请稍候...`, 'info');
@@ -1732,10 +1760,28 @@ class App {
       });
 
       if (localPath) {
-        // 保存相对路径到角色库
-        char.spriteUrl = `assets/${filename}`;
-        await window.projectManager.writeCharacters(project, charData);
-        Utils.showNotification(`【${char.name}】立绘生成成功！`, 'success');
+        // 自动扣除白底/浅色背景，转换为真透明 PNG
+        if (btnGen) btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 智能透明抠图中...';
+        try {
+          const fileUrl = window.PathUtils.toFileUrl(localPath);
+          const transparentDataUrl = await Utils.makeSpriteTransparent(fileUrl);
+          if (transparentDataUrl && transparentDataUrl.startsWith('data:image/png;base64,')) {
+            const base64Data = transparentDataUrl.replace(/^data:image\/png;base64,/, '');
+            await window.electronAPI.fs.writeFile(localPath, base64Data, 'base64');
+            console.log('✅ 立绘自动去底完成并已持久化');
+          }
+        } catch (mattingErr) {
+          console.warn('立绘透明化处理跳过:', mattingErr);
+        }
+
+        // 重新读取最新角色库保存，防止并发覆盖
+        const freshCharData = await window.projectManager.readCharacters(project);
+        if (!freshCharData.characters) freshCharData.characters = {};
+        if (freshCharData.characters[charId]) {
+          freshCharData.characters[charId].spriteUrl = `assets/${filename}`;
+          await window.projectManager.writeCharacters(project, freshCharData);
+        }
+        Utils.showNotification(`【${char.name}】立绘生成并去底完成！`, 'success');
         await this.renderAssetsSprites(projectId);
       }
     } catch (e) {
