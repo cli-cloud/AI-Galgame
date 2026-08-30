@@ -375,6 +375,31 @@
             </div>
         </div>
 
+        <!-- 素材高清大图与描述预览弹窗 -->
+        <div id="asset-preview-modal" class="modal" style="z-index: 1200;">
+            <div class="modal-content large asset-preview-box">
+                <div class="modal-header">
+                    <h3 id="preview-modal-title"><i class="fa fa-image"></i> 背景详情与画面描述</h3>
+                    <button class="btn-close" onclick="closeAssetPreviewModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" style="padding: 16px 24px;">
+                    <div class="preview-img-container">
+                        <img id="preview-modal-img" src="" alt="背景大图预览" />
+                    </div>
+                    <div class="preview-info-box">
+                        <div class="preview-info-header">
+                            <span class="preview-info-tag" id="preview-modal-tag"><i class="fa fa-tag"></i> 场景描述词 (Prompt)</span>
+                            <button type="button" class="btn-tool-pill" id="btn-copy-preview-prompt"><i class="fa fa-copy"></i> 复制描述词</button>
+                        </div>
+                        <div class="preview-prompt-text" id="preview-modal-prompt">暂无描述词</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAssetPreviewModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 项目综合介绍对话框 -->
         <div id="project-overview-modal" class="modal">
             <div class="modal-content large">

@@ -1917,6 +1917,9 @@ class App {
   /**
    * 渲染场景背景库
    */
+  /**
+   * 渲染场景背景库（展示画面描述词与支持大图查看）
+   */
   async renderAssetsBackgrounds(projectId) {
     const container = document.getElementById('backgrounds-gallery');
     if (!container) return;
@@ -1931,7 +1934,7 @@ class App {
       const files = await window.electronAPI.fs.readdir(assetsDir);
 
       // 筛选出所有图片文件
-      const imageFiles = (files || []).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f));
+      const imageFiles = (files || []).filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f) && !f.startsWith('sprite_'));
 
       if (imageFiles.length === 0) {
         container.innerHTML = `
@@ -1943,25 +1946,72 @@ class App {
         return;
       }
 
+      // 读取时间线及元数据中记录的背景提示词/场景描述
+      const promptMap = {};
+      try {
+        const metaPath = `${assetsDir}/backgrounds_meta.json`;
+        if (await window.electronAPI.fs.exists(metaPath)) {
+          const metaData = await window.electronAPI.fs.readJson(metaPath);
+          Object.assign(promptMap, metaData || {});
+        }
+      } catch (e) {
+        console.warn('读取 backgrounds_meta 失败:', e);
+      }
+
+      try {
+        const timelineNodes = await window.projectManager.getTimelineHistory(projectId);
+        if (Array.isArray(timelineNodes)) {
+          timelineNodes.forEach((n, idx) => {
+            const bgUrl = n?.content?.backgroundUrl || '';
+            const bgFile = bgUrl.split(/[/\\]/).pop();
+            const prompt = n?.content?.backgroundPrompt || n?.content?.imagePrompt;
+            const summary = n?.content?.chapterSummary;
+            if (bgFile && !promptMap[bgFile]) {
+              promptMap[bgFile] = {
+                prompt: prompt || summary || `第 ${idx + 1} 幕背景`,
+                chapterSummary: summary,
+                timestamp: n.timestamp
+              };
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('获取时间线提示词失败:', err);
+      }
+
       container.innerHTML = '';
 
       imageFiles.forEach(file => {
         const fullPath = `${assetsDir}/${file}`;
         const fileUrl = window.PathUtils.toFileUrl(fullPath);
+        const metaInfo = promptMap[file] || {};
+        const promptText = typeof metaInfo === 'string' ? metaInfo : (metaInfo.prompt || metaInfo.chapterSummary || '游戏剧情场景背景');
 
         const card = document.createElement('div');
         card.className = 'bg-card';
+        card.setAttribute('title', '点击查看高清大图与完整描述');
 
         card.innerHTML = `
-          <img src="${fileUrl}" class="bg-card-img" alt="${Utils.escapeHtml(file)}" />
+          <img src="${fileUrl}" class="bg-card-img" alt="${Utils.escapeHtml(promptText)}" />
           <div class="bg-card-overlay">
             <div class="bg-card-filename">${Utils.escapeHtml(file)}</div>
+            <div class="bg-card-prompt-badge" title="${Utils.escapeHtml(promptText)}">
+              <i class="fa fa-quote-left" style="font-size:10px; opacity:0.6;"></i> ${Utils.escapeHtml(promptText)}
+            </div>
             <div class="bg-card-btns">
+              <button type="button" class="bg-card-btn btn-view-bg" title="查看大图与描述"><i class="fa fa-expand"></i> 查看</button>
               <button type="button" class="bg-card-btn btn-set-cover" title="设为此项目封面"><i class="fa fa-image"></i> 设为封面</button>
               <button type="button" class="bg-card-btn danger btn-del-bg" title="删除素材"><i class="fa fa-trash"></i></button>
             </div>
           </div>
         `;
+
+        // 点击卡片或查看按钮：打开大图与描述预览 Lightbox
+        const openPreview = (e) => {
+          if (e.target.closest('.btn-set-cover, .btn-del-bg')) return;
+          this.openAssetPreviewModal(fileUrl, promptText, file);
+        };
+        card.addEventListener('click', openPreview);
 
         // 设为封面
         card.querySelector('.btn-set-cover')?.addEventListener('click', async (e) => {
@@ -1997,6 +2047,32 @@ class App {
   }
 
   /**
+   * 打开背景大图与提示词详情弹窗
+   */
+  openAssetPreviewModal(imageUrl, promptText, filename) {
+    const modal = document.getElementById('asset-preview-modal');
+    const imgEl = document.getElementById('preview-modal-img');
+    const promptEl = document.getElementById('preview-modal-prompt');
+    const titleEl = document.getElementById('preview-modal-title');
+    const copyBtn = document.getElementById('btn-copy-preview-prompt');
+
+    if (imgEl) imgEl.src = imageUrl;
+    if (promptEl) promptEl.textContent = promptText || '无具体描述词';
+    if (titleEl) titleEl.innerHTML = `<i class="fa fa-image"></i> 背景详情 - ${Utils.escapeHtml(filename || '背景预览')}`;
+
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        if (promptText) {
+          navigator.clipboard.writeText(promptText);
+          Utils.showNotification('描述词已复制到剪贴板！', 'success');
+        }
+      };
+    }
+
+    if (modal) modal.classList.add('active');
+  }
+
+  /**
    * 将指定素材设为项目封面
    */
   async setAssetAsProjectCover(projectId, relativePath) {
@@ -2024,7 +2100,7 @@ class App {
   }
 
   /**
-   * AI 生成新场景背景
+   * AI 生成新场景背景并记录描述词
    */
   async generateCustomBackground() {
     const promptInput = document.getElementById('custom-bg-prompt');
@@ -2061,6 +2137,23 @@ class App {
       });
 
       if (localPath) {
+        // 保存背景提示词元数据到 backgrounds_meta.json
+        try {
+          const assetsDir = `${project.path}/assets`;
+          const metaPath = `${assetsDir}/backgrounds_meta.json`;
+          let metaData = {};
+          if (await window.electronAPI.fs.exists(metaPath)) {
+            metaData = await window.electronAPI.fs.readJson(metaPath) || {};
+          }
+          metaData[filename] = {
+            prompt: prompt,
+            timestamp: Date.now()
+          };
+          await window.electronAPI.fs.writeJson(metaPath, metaData);
+        } catch (metaErr) {
+          console.warn('保存 backgrounds_meta 失败:', metaErr);
+        }
+
         Utils.showNotification('背景生成成功并已保存到项目中！', 'success');
         document.getElementById('bg-generate-modal')?.classList.remove('active');
         promptInput.value = '';
@@ -4163,6 +4256,13 @@ window.closeProjectAssetsModal = function() {
 
 window.closeBgGenerateModal = function() {
   const modal = document.getElementById('bg-generate-modal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+window.closeAssetPreviewModal = function() {
+  const modal = document.getElementById('asset-preview-modal');
   if (modal) {
     modal.classList.remove('active');
   }
