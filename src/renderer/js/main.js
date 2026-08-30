@@ -1955,12 +1955,23 @@ class App {
         btnGen.innerHTML = `<i class="fa fa-spinner fa-spin"></i> 生成【${expPreset.name}】中...`;
       }
 
-      // 构建针对特定表情的高质量二次元视觉小说立绘提示词（强化透明背景 PNG 与 alpha 提示）
+      // 智能根据当前配置的生图模型（GPT/DALL-E vs SD/Flux）构建专门优化的原生透明背景提示词
+      const imageModel = window.aiService?.imageConfig?.model || '';
+      const isGptModel = /dall-e|gpt/i.test(imageModel) || (window.aiService?.imageConfig?.type === 'openai' && (/dall-e|gpt/i.test(imageModel) || !imageModel));
+
       const visual = char.visualPrompt || `${char.name} anime character`;
-      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, pure alpha channel, 32-bit transparent PNG, upper body portrait, waist-up, solo, 1girl, ${visual}, ${expPreset.prompt}, visual novel character sprite, character focus, isolated on pure transparent background, clean cutout, no background`;
+      let spritePrompt = '';
+
+      if (isGptModel) {
+        // DALL-E 3 / GPT 系列专属原生透明通道与高质量孤立人物提示词
+        spritePrompt = `Full upper-body character sprite of anime girl for visual novel game, isolated on pure transparent background. PNG format with transparent alpha channel, clear alpha cutout, clean sharp edges, sticker cutout style, no background scenery, no backdrop, zero shadows on background, pure isolated character on clean transparent canvas. Japanese anime visual novel artwork: ${visual}, expression: ${expPreset.prompt}. Upper body waist-up portrait, solo, 1girl, highly detailed character focus, crisp clean transparency.`;
+      } else {
+        // SD / Midjourney / Flux / 通用模型提示词
+        spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, pure alpha channel, 32-bit transparent PNG, upper body portrait, waist-up, solo, 1girl, ${visual}, ${expPreset.prompt}, visual novel character sprite, character focus, isolated on pure transparent background, clean cutout, no background, simple background, white background cutout`;
+      }
 
       const filename = `sprite_${char.name}_${expressionId}_${Date.now()}.png`;
-      Utils.showNotification(`正在为【${char.name}】生成【${expPreset.name}】立绘，请稍候...`, 'info');
+      Utils.showNotification(`正在为【${char.name}】生成【${expPreset.name}】立绘 (模型: ${imageModel || '默认'})，请稍候...`, 'info');
 
       const localPath = await window.aiService.generateImage(spritePrompt, {
         projectId: project.id,
