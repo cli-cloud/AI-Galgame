@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exists: (path) => ipcRenderer.invoke('fs-exists', path),
     readJson: (path) => ipcRenderer.invoke('fs-read-json', path),
     writeJson: (path, data) => ipcRenderer.invoke('fs-write-json', path, data),
-    writeFile: (path, data) => ipcRenderer.invoke('fs-write-file', path, data),
+    writeFile: (path, data, encoding) => ipcRenderer.invoke('fs-write-file', path, data, encoding),
     readFile: (path, encoding) => ipcRenderer.invoke('fs-read-file', path, encoding),
     ensureDir: (path) => ipcRenderer.invoke('fs-ensure-dir', path),
     readdir: (path) => ipcRenderer.invoke('fs-readdir', path),

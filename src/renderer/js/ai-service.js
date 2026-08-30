@@ -228,10 +228,6 @@ class AIService {
    * @param {AbortSignal} signal - 中断信号
    */
   async generateStoryContent(context, knowledgeBase, userChoice = '', signal = null) {
-    if (this.isGenerating) {
-      throw new Error('正在生成中，请稍候...');
-    }
-
     await this.loadSettings();
     console.log('[AIService] 准备生成故事内容，文本API配置:', {
       type: this.textConfig?.type,
@@ -245,8 +241,6 @@ class AIService {
       console.warn('[AIService] 文本生成API校验未通过（未配置或路径无效）');
       throw new Error('请先配置文本生成API');
     }
-
-    this.isGenerating = true;
 
     try {
       // 检查中断信号
@@ -722,27 +716,52 @@ ${iotDataSection}
 
 请严格仅以JSON格式返回以下内容（不要包含任何解释或多余文本）：
 {
-  "dialogue": "当前主要对白文本（必填）",
+  "dialogue": "本幕剧情首句台词或剧情总述（必填）",
   "speaker": "当前说话者（如：曾根美雪 / 向日葵 / 旁白）",
   "speakerEmotion": "happy|blushing|neutral|surprised|angry|sad|thinking|smug",
   "dialogues": [
     {
-      "speaker": "说话者名",
-      "text": "本小节第一句对白或心理描写",
+      "speaker": "曾根美雪",
+      "text": "「……你在看什么？从刚才开始视线就一直游移不定。」",
       "emotion": "neutral"
     },
     {
-      "speaker": "说话者名",
-      "text": "本小节第二句对白或互动",
+      "speaker": "旁白",
+      "text": "她放下了手中的书本，紫色的眼眸中带着一丝审视与探寻。",
+      "emotion": "neutral"
+    },
+    {
+      "speaker": "向日葵",
+      "text": "「啊哈哈！美雪太严肃啦，明明只是普通的走神嘛～」",
+      "emotion": "happy"
+    },
+    {
+      "speaker": "向日葵",
+      "text": "「对吧？今天的天气这么好，不如放学后一起去吃可丽饼吧！」",
       "emotion": "blushing"
+    },
+    {
+      "speaker": "曾根美雪",
+      "text": "「真是肤浅的提议……不过，也不是不能考虑。」",
+      "emotion": "smug"
+    },
+    {
+      "speaker": "旁白",
+      "text": "夕阳穿过窗棂洒在课桌上，空气中弥漫着微妙的静谧与心动。",
+      "emotion": "neutral"
     }
   ],
   "sceneChanged": false,
   "activeCharacters": [
     {
-      "name": "在场角色名（如：曾根美雪）",
-      "position": "center|left|right",
-      "expression": "happy|blushing|neutral|surprised|angry|sad"
+      "name": "曾根美雪",
+      "position": "left",
+      "expression": "neutral"
+    },
+    {
+      "name": "向日葵",
+      "position": "right",
+      "expression": "happy"
     }
   ],
   "choices": [],
@@ -772,12 +791,14 @@ ${iotDataSection}
 }
 
 要求：
-1. 对话内容要生动细腻，符合经典 Galgame/视觉小说 叙事节奏，注重角色心理描写、微表情互动与氛围烘托，与历史对话紧密连贯。
+1. 【单次输出长篇对白序列（必须生成 6 ~ 12 句连续对话框）】：
+   - AI 单次必须输出 300 ~ 600 字的饱满情节，并将其拆解为 6 ~ 12 个连贯的对白小节（dialogues 数组）！
+   - 包含角色交锋对白、心理独白、环境氛围描写、动作互动与表情差分（emotion），让玩家每次生成都能按空格/点击连续阅读 6~12 句对话框！
 2. 【严格控制分支选项频率（85%以上必须无选项）】：
    - Galgame 是强叙事与剧情沉浸驱动的游戏，玩家主要通过按空格或点击连贯阅读推进故事；
    - 【常态要求】：90% 的常规对白推进、日常交流、情感发展、剧情铺垫与场景过渡，**choices 必须保持为空数组 []**，严禁频繁出现碎片化无意义选项；
    - 【极罕见选项】：只有在经历了充分的剧情铺垫后，面临【关键主线分歧】、【路线抉择】或【重大转折决策】时，才在 choices 中提供 2~3 个有深度影响的选择项。
-3. 【背景画面复用】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt。
+3. 【背景画面复用与异步生成】：sceneChanged 表示是否发生了场景地点切换（true/false）。如果仍在同一地点/同一房间，sceneChanged 设为 false，backgroundPrompt 设为 null（沿用上一张背景）；仅当发生转场、换地点（如放学走廊到学校天台）时，sceneChanged 设为 true 并提供新的 backgroundPrompt。
 4. speaker要精确指示当前正在说话的角色姓名（旁白请填 "旁白"）。
 5. activeCharacters列出当前镜头场景中出现的角色及其表情与相对位置（left/center/right）。
 6. backgroundPrompt仅描述环境背景，不包含人物，实现背景与立绘独立解耦。
@@ -1191,6 +1212,56 @@ ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度�
     }
     if (!parsed.backgroundPrompt) {
       parsed.backgroundPrompt = parsed.imagePrompt;
+    }
+
+    // 智能解析与标准化多句对白序列 dialogues (支持 6~12 句连续对话框)
+    if (Array.isArray(parsed.dialogues) && parsed.dialogues.length > 0) {
+      parsed.dialogues = parsed.dialogues.map(d => ({
+        speaker: d.speaker || parsed.speaker || '旁白',
+        text: d.text || d.dialogue || '',
+        emotion: d.emotion || d.speakerEmotion || 'neutral'
+      })).filter(d => d.text && d.text.trim());
+    }
+
+    // 若模型未返回 dialogues 数组或仅返回 1 条，但主 dialogue 包含长篇剧情，智能按台词/引语/句号拆分为多个连续对话框
+    if (!Array.isArray(parsed.dialogues) || parsed.dialogues.length <= 1) {
+      const fullText = parsed.dialogue || '';
+      const splitBeats = [];
+      // 按日系引号 「...」 / 中文引号 “...” / 换行 / 完整标点拆解
+      const rawChunks = fullText.split(/(?<=[。！？\n])|(?=[「“])|(?<=[」”])/g);
+      let buffer = '';
+
+      for (const chunk of rawChunks) {
+        const trimmed = (buffer + chunk).trim();
+        if (trimmed.length >= 15 || (trimmed.startsWith('「') && trimmed.endsWith('」')) || (trimmed.startsWith('“') && trimmed.endsWith('”'))) {
+          const isQuote = (trimmed.startsWith('「') && trimmed.endsWith('」')) || (trimmed.startsWith('“') && trimmed.endsWith('”'));
+          splitBeats.push({
+            speaker: isQuote ? (parsed.speaker || '') : '旁白',
+            text: trimmed,
+            emotion: parsed.speakerEmotion || 'neutral'
+          });
+          buffer = '';
+        } else {
+          buffer += chunk;
+        }
+      }
+      if (buffer.trim()) {
+        splitBeats.push({
+          speaker: parsed.speaker || '旁白',
+          text: buffer.trim(),
+          emotion: parsed.speakerEmotion || 'neutral'
+        });
+      }
+
+      if (splitBeats.length > 1) {
+        parsed.dialogues = splitBeats;
+      } else {
+        parsed.dialogues = [{
+          speaker: parsed.speaker || '',
+          text: fullText || '……',
+          emotion: parsed.speakerEmotion || 'neutral'
+        }];
+      }
     }
 
     // 标准化 choices 格式（兼容数组为纯文本字符串或缺属性情况）

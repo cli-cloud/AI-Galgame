@@ -533,9 +533,20 @@ Set-ItemProperty -Path $regPath -Name "TileWallpaper" -Value "0"
       }
     });
 
-    ipcMain.handle('fs-write-file', async (event, path, data) => {
+    ipcMain.handle('fs-write-file', async (event, path, data, encoding) => {
       try {
-        await fs.writeFile(path, data);
+        if (encoding === 'base64' && typeof data === 'string') {
+          const buffer = Buffer.from(data, 'base64');
+          await fs.writeFile(path, buffer);
+        } else if (encoding) {
+          await fs.writeFile(path, data, encoding);
+        } else if (typeof data === 'string' && /^[A-Za-z0-9+/=]{100,}$/.test(data.trim())) {
+          // 自动检测未传encoding但内容为纯base64的图片字符串
+          const buffer = Buffer.from(data.trim(), 'base64');
+          await fs.writeFile(path, buffer);
+        } else {
+          await fs.writeFile(path, data);
+        }
         return true;
       } catch (error) {
         throw error;

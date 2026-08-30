@@ -1196,7 +1196,22 @@ class GameEngine {
       return;
     }
 
-    // 3. 预取队列为空时，回退到同步生成并显示加载提示
+    // 3. 如果当前后台正在预取中，等待预取完成并直接呈现（避免并发冲突与重复调用）
+    if (this.isPrefetching && this.activePrefetchPromise) {
+      this.showLoadingOverlay('正在载入故事内容...', '后台同步中');
+      try {
+        await this.activePrefetchPromise;
+      } catch (e) {
+        console.warn('等待后台预取完成出错:', e);
+      }
+      this.hideLoadingOverlay();
+      if (this.prefetchQueue && this.prefetchQueue.length > 0) {
+        await this.continueStory();
+        return;
+      }
+    }
+
+    // 4. 预取队列为空且未在预取时，同步生成并显示加载提示
     try {
       await this.generateNextContent('');
     } catch (error) {
@@ -1220,91 +1235,94 @@ class GameEngine {
     }
 
     this.isPrefetching = true;
-    try {
-      // 锚定最新的对话上下文
-      const lastNode = this.prefetchQueue.length > 0 
-        ? this.prefetchQueue[this.prefetchQueue.length - 1] 
-        : this.currentTimeline;
+    this.activePrefetchPromise = (async () => {
+      try {
+        // 锚定最新的对话上下文
+        const lastNode = this.prefetchQueue.length > 0 
+          ? this.prefetchQueue[this.prefetchQueue.length - 1] 
+          : this.currentTimeline;
 
-      const knowledgeBase = this.currentProject.knowledgeBase || lastNode.knowledgeBase || {};
-      const context = {
-        projectName: this.currentProject.name,
-        projectStyle: this.currentProject.style,
-        currentContent: lastNode.content?.dialogue || '',
-        knowledgeBase: knowledgeBase,
-        characters: this.currentProject.characters
-      };
-
-      console.log(`⚡ [Prefetch] 启动后台对白预生成 (当前队列: ${this.prefetchQueue.length}/${this.maxPrefetchDepth})...`);
-
-      const aiResponse = await window.aiService.generateStoryContent(
-        context,
-        knowledgeBase,
-        '',
-        null
-      );
-
-      if (aiResponse && (aiResponse.dialogue || aiResponse.dialogues)) {
-        const updatedKnowledgeBase = window.aiService.applyKnowledgeUpdates(
-          knowledgeBase,
-          aiResponse.knowledgeUpdates
-        );
-
-        // 背景图预拉取
-        const previousBg = lastNode.content?.backgroundUrl || null;
-        const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
-        let backgroundUrl = previousBg;
-
-        if (aiResponse.sceneChanged === true && targetImagePrompt) {
-          try {
-            const filename = `background_${Date.now()}.png`;
-            const localPath = await window.aiService.generateImage(targetImagePrompt, {
-              projectId: this.currentProject.id,
-              filename: filename
-            });
-            if (localPath) backgroundUrl = localPath;
-          } catch (imgErr) {
-            console.warn('⚡ [Prefetch] 后台预取背景图跳过:', imgErr);
-          }
-        }
-
-        const prefetchedTimelineNode = {
-          id: Utils.generateId(),
-          timestamp: Date.now(),
-          content: {
-            dialogue: aiResponse.dialogue,
-            dialogues: aiResponse.dialogues || null,
-            speaker: aiResponse.speaker,
-            speakerEmotion: aiResponse.speakerEmotion || 'neutral',
-            activeCharacters: aiResponse.activeCharacters || [],
-            choices: aiResponse.choices || [],
-            imagePrompt: targetImagePrompt,
-            backgroundPrompt: aiResponse.backgroundPrompt,
-            knowledgeUpdates: aiResponse.knowledgeUpdates || {},
-            chapterSummary: aiResponse.chapterSummary,
-            backgroundUrl: backgroundUrl,
-            userChoice: ''
-          },
-          knowledgeBase: updatedKnowledgeBase,
-          charactersDelta: aiResponse.charactersDelta || null,
-          isCheckpoint: true
+        const knowledgeBase = this.currentProject.knowledgeBase || lastNode.knowledgeBase || {};
+        const context = {
+          projectName: this.currentProject.name,
+          projectStyle: this.currentProject.style,
+          currentContent: lastNode.content?.dialogue || '',
+          knowledgeBase: knowledgeBase,
+          characters: this.currentProject.characters
         };
 
-        this.prefetchQueue.push(prefetchedTimelineNode);
-        console.log(`✅ [Prefetch] 成功预生成第 ${this.prefetchQueue.length} 个后台对白:`, (aiResponse.dialogue || '').substring(0, 25));
+        console.log(`⚡ [Prefetch] 启动后台对白预生成 (当前队列: ${this.prefetchQueue.length}/${this.maxPrefetchDepth})...`);
 
-        // 如果还可以继续预取且无分支选择，自动填充第 2 个
-        if (this.prefetchQueue.length < this.maxPrefetchDepth && (!aiResponse.choices || aiResponse.choices.length === 0)) {
-          this.isPrefetching = false;
-          setTimeout(() => this.triggerPrefetch(), 500);
-          return;
+        const aiResponse = await window.aiService.generateStoryContent(
+          context,
+          knowledgeBase,
+          '',
+          null
+        );
+
+        if (aiResponse && (aiResponse.dialogue || aiResponse.dialogues)) {
+          const updatedKnowledgeBase = window.aiService.applyKnowledgeUpdates(
+            knowledgeBase,
+            aiResponse.knowledgeUpdates
+          );
+
+          // 背景图预拉取
+          const previousBg = lastNode.content?.backgroundUrl || null;
+          const targetImagePrompt = aiResponse.backgroundPrompt || aiResponse.imagePrompt;
+          let backgroundUrl = previousBg;
+
+          if (aiResponse.sceneChanged === true && targetImagePrompt) {
+            try {
+              const filename = `background_${Date.now()}.png`;
+              const localPath = await window.aiService.generateImage(targetImagePrompt, {
+                projectId: this.currentProject.id,
+                filename: filename
+              });
+              if (localPath) backgroundUrl = localPath;
+            } catch (imgErr) {
+              console.warn('⚡ [Prefetch] 后台预取背景图跳过:', imgErr);
+            }
+          }
+
+          const prefetchedTimelineNode = {
+            id: Utils.generateId(),
+            timestamp: Date.now(),
+            content: {
+              dialogue: aiResponse.dialogue,
+              dialogues: aiResponse.dialogues || null,
+              speaker: aiResponse.speaker,
+              speakerEmotion: aiResponse.speakerEmotion || 'neutral',
+              activeCharacters: aiResponse.activeCharacters || [],
+              choices: aiResponse.choices || [],
+              imagePrompt: targetImagePrompt,
+              backgroundPrompt: aiResponse.backgroundPrompt,
+              knowledgeUpdates: aiResponse.knowledgeUpdates || {},
+              chapterSummary: aiResponse.chapterSummary,
+              backgroundUrl: backgroundUrl,
+              userChoice: ''
+            },
+            knowledgeBase: updatedKnowledgeBase,
+            charactersDelta: aiResponse.charactersDelta || null,
+            isCheckpoint: true
+          };
+
+          this.prefetchQueue.push(prefetchedTimelineNode);
+          console.log(`✅ [Prefetch] 成功预生成第 ${this.prefetchQueue.length} 个后台对白:`, (aiResponse.dialogue || '').substring(0, 25));
+
+          // 如果还可以继续预取且无分支选择，自动填充下一个
+          if (this.prefetchQueue.length < this.maxPrefetchDepth && (!aiResponse.choices || aiResponse.choices.length === 0)) {
+            setTimeout(() => this.triggerPrefetch(), 500);
+          }
         }
+      } catch (err) {
+        console.warn('⚡ [Prefetch] 后台预取对白跳过:', err);
+      } finally {
+        this.isPrefetching = false;
+        this.activePrefetchPromise = null;
       }
-    } catch (err) {
-      console.warn('⚡ [Prefetch] 后台预取对白跳过:', err);
-    } finally {
-      this.isPrefetching = false;
-    }
+    })();
+
+    await this.activePrefetchPromise;
   }
 
   /**
@@ -1434,7 +1452,9 @@ class GameEngine {
         timestamp: Date.now(),
         content: {
           dialogue: aiResponse.dialogue,
+          dialogues: aiResponse.dialogues || null,
           speaker: aiResponse.speaker,
+          speakerEmotion: aiResponse.speakerEmotion || 'neutral',
           activeCharacters: aiResponse.activeCharacters || [],
           choices: aiResponse.choices || [],
           imagePrompt: targetImagePrompt,
