@@ -3193,5 +3193,75 @@ body.theme-light .form-group textarea::placeholder { color: #6b7280; }
   font-size: 11px;
 }
 
+/* ========================================================
+   多立绘表情差分选择器 (Multi-Expression Sprites)
+   ======================================================== */
+.sprite-expressions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 8px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.expression-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.expression-pill:hover {
+  background: rgba(255, 105, 180, 0.2);
+  border-color: rgba(255, 105, 180, 0.4);
+  color: #ffffff;
+}
+
+.expression-pill.active {
+  background: var(--primary-color, #ff69b4);
+  border-color: var(--primary-color, #ff69b4);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 105, 180, 0.4);
+}
+
+.expression-pill.has-img::after {
+  content: '•';
+  color: #4ade80;
+  font-size: 1.1rem;
+  line-height: 0.4;
+  margin-left: 2px;
+}
+
+.sprite-batch-gen-btn {
+  width: 100%;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 5px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sprite-batch-gen-btn:hover {
+  background: rgba(255, 105, 180, 0.15);
+  border-color: var(--primary-color, #ff69b4);
+  color: var(--primary-color, #ff69b4);
+}
+
+
 
 

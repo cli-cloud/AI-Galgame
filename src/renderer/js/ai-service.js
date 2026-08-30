@@ -1170,6 +1170,9 @@ ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度�
     if (!parsed.imagePrompt) {
       parsed.imagePrompt = parsed.backgroundPrompt || parsed.image_prompt || 'anime classroom scene, high quality';
     }
+    if (!parsed.speakerEmotion) {
+      parsed.speakerEmotion = parsed.emotion || parsed.activeCharacters?.[0]?.expression || 'neutral';
+    }
     if (!parsed.backgroundPrompt) {
       parsed.backgroundPrompt = parsed.imagePrompt;
     }

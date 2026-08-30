@@ -1284,7 +1284,16 @@ class GameEngine {
       let position = sc.position || (sceneCharacters.length === 1 ? 'center' : (index === 0 ? 'left' : 'right'));
       let leftCss = posMap[position] || '50%';
 
-      let spriteUrl = charObj.spriteUrl || charObj.avatarUrl;
+      // 动态匹配情绪与表情差分立绘 (happy, blushing, sad, angry, surprised, thinking, smug, neutral)
+      const emotion = (sc.expression || (isSpeaking ? (content.speakerEmotion || content.emotion) : 'neutral') || 'neutral').toLowerCase();
+      let chosenRelativePath = null;
+      if (charObj.expressions && typeof charObj.expressions === 'object') {
+        chosenRelativePath = charObj.expressions[emotion] || charObj.expressions['neutral'] || charObj.spriteUrl || Object.values(charObj.expressions)[0];
+      } else {
+        chosenRelativePath = charObj.spriteUrl || charObj.avatarUrl;
+      }
+
+      let spriteUrl = chosenRelativePath;
       if (!spriteUrl) {
         spriteUrl = this.generateFallbackCharacterSvg(name, charObj.color || (isSpeaking ? '#ff69b4' : '#4a90e2'));
       } else if (spriteUrl.startsWith('assets/')) {
@@ -1296,6 +1305,7 @@ class GameEngine {
       const spriteWrapper = document.createElement('div');
       spriteWrapper.className = `character-sprite-wrapper ${isSpeaking ? 'speaking' : 'inactive'}`;
       spriteWrapper.dataset.name = name;
+      spriteWrapper.dataset.emotion = emotion;
       spriteWrapper.style.left = leftCss;
 
       const nameTag = document.createElement('div');

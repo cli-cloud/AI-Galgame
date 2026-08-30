@@ -1597,7 +1597,23 @@ class App {
   }
 
   /**
-   * 渲染角色立绘管理列表
+   * 角色立绘表情差分预设定义
+   */
+  static get SPRITE_EXPRESSIONS() {
+    return [
+      { id: 'neutral', name: '日常', emoji: '😊', prompt: 'calm gentle smile, soft neutral expression, relaxed standing pose' },
+      { id: 'happy', name: '开心', emoji: '😄', prompt: 'joyful bright smile, cheerful energetic happy expression, lively pose' },
+      { id: 'blushing', name: '害羞', emoji: '😳', prompt: 'heavy blush on cheeks, shy embarrassed expression, cute bashful flustered' },
+      { id: 'sad', name: '悲伤', emoji: '😢', prompt: 'sorrowful, sad melancholic expression, tearful gentle frown, looking down' },
+      { id: 'angry', name: '生气', emoji: '😠', prompt: 'pouting, angry tsundere expression, furrowed cute brows, upset crossed arms' },
+      { id: 'surprised', name: '惊讶', emoji: '😲', prompt: 'surprised, wide open eyes, slight gasp, astonished shocked expression' },
+      { id: 'thinking', name: '沉思', emoji: '🤔', prompt: 'thoughtful, head tilted, finger on chin, curious puzzled expression' },
+      { id: 'smug', name: '得意', emoji: '😏', prompt: 'smug confident grin, playful wink, teasing tricky expression' }
+    ];
+  }
+
+  /**
+   * 渲染角色立绘管理列表（支持多表情差分切换与生成）
    */
   async renderAssetsSprites(projectId) {
     const container = document.getElementById('sprites-gallery');
@@ -1634,13 +1650,28 @@ class App {
 
       let hasAutoRepaired = false;
       for (const [charId, char] of charEntries) {
-        if (!char.spriteUrl && Array.isArray(assetFiles)) {
-          // 查找匹配当前角色名字的立绘文件
-          const matched = assetFiles.find(f => f.startsWith('sprite_') && (f.includes(char.name) || f.includes(charId)));
-          if (matched) {
-            char.spriteUrl = `assets/${matched}`;
-            hasAutoRepaired = true;
-          }
+        if (!char.expressions) char.expressions = {};
+        // 将旧版单个 spriteUrl 同步到 neutral
+        if (char.spriteUrl && !char.expressions.neutral) {
+          char.expressions.neutral = char.spriteUrl;
+          hasAutoRepaired = true;
+        }
+
+        if (Array.isArray(assetFiles)) {
+          // 自动匹配已存在的表情立绘文件 (如 sprite_曾根美雪_happy_xxx.png 或 sprite_xxx_曾根美雪.png)
+          App.SPRITE_EXPRESSIONS.forEach(exp => {
+            if (!char.expressions[exp.id]) {
+              const matched = assetFiles.find(f => 
+                f.startsWith('sprite_') && 
+                (f.includes(char.name) || f.includes(charId)) &&
+                (f.includes(`_${exp.id}_`) || f.includes(`_${exp.name}_`))
+              );
+              if (matched) {
+                char.expressions[exp.id] = `assets/${matched}`;
+                hasAutoRepaired = true;
+              }
+            }
+          });
         }
       }
       if (hasAutoRepaired) {
@@ -1654,62 +1685,107 @@ class App {
         card.className = 'sprite-card';
         card.setAttribute('data-char-id', charId);
 
-        let spriteSrc = '';
-        if (char.spriteUrl) {
-          const fullPath = char.spriteUrl.startsWith('assets/') ? `${project.path}/${char.spriteUrl}` : char.spriteUrl;
-          spriteSrc = window.PathUtils.toFileUrl(fullPath);
-        }
+        let activeExpId = 'neutral';
+        const expressions = char.expressions || {};
 
-        const previewHtml = spriteSrc ? `
-          <img src="${spriteSrc}" alt="${Utils.escapeHtml(char.name)}" onerror="this.parentElement.innerHTML='<div class=\\'sprite-placeholder\\'><i class=\\'fa fa-image\\'></i><span>图片丢失</span></div>'" />
-        ` : `
-          <div class="sprite-placeholder">
-            <i class="fa fa-user-circle"></i>
-            <span>暂未生成立绘</span>
-          </div>
-        `;
+        const getSpriteSrcForExp = (expId) => {
+          const relPath = expressions[expId] || (expId === 'neutral' ? char.spriteUrl : null);
+          if (!relPath) return '';
+          const fullPath = relPath.startsWith('assets/') ? `${project.path}/${relPath}` : relPath;
+          return window.PathUtils.toFileUrl(fullPath);
+        };
 
-        card.innerHTML = `
-          <div class="sprite-preview-box">${previewHtml}</div>
-          <div class="sprite-card-info">
-            <div class="sprite-card-header">
-              <span class="sprite-card-name">${Utils.escapeHtml(char.name)}</span>
-              <span class="sprite-card-role">${Utils.escapeHtml(char.role || '主要角色')}</span>
+        const renderCardInner = () => {
+          const currentExp = App.SPRITE_EXPRESSIONS.find(e => e.id === activeExpId) || App.SPRITE_EXPRESSIONS[0];
+          const spriteSrc = getSpriteSrcForExp(activeExpId);
+
+          const previewHtml = spriteSrc ? `
+            <img src="${spriteSrc}" alt="${Utils.escapeHtml(char.name)} - ${currentExp.name}" onerror="this.parentElement.innerHTML='<div class=\\'sprite-placeholder\\'><i class=\\'fa fa-image\\'></i><span>图片丢失</span></div>'" />
+          ` : `
+            <div class="sprite-placeholder">
+              <i class="fa fa-user-circle"></i>
+              <span>未生成【${currentExp.name}】表情</span>
             </div>
-            <div class="sprite-card-prompt-box" title="立绘外貌特征词">
-              ${Utils.escapeHtml(char.visualPrompt || '未设置外貌特征词')}
-            </div>
-            <div class="sprite-card-actions">
-              <button type="button" class="btn btn-primary btn-generate-sprite" data-char-id="${charId}">
-                <i class="fa fa-wand-magic-sparkles"></i> AI 生成立绘
-              </button>
-              ${spriteSrc ? `
-                <button type="button" class="btn btn-secondary btn-clear-sprite" data-char-id="${charId}" title="清除立绘">
-                  <i class="fa fa-trash"></i>
+          `;
+
+          // 表情药丸选择器
+          const pillsHtml = App.SPRITE_EXPRESSIONS.map(exp => {
+            const hasImg = !!expressions[exp.id] || (exp.id === 'neutral' && !!char.spriteUrl);
+            const isActive = exp.id === activeExpId;
+            return `
+              <div class="expression-pill ${isActive ? 'active' : ''} ${hasImg ? 'has-img' : ''}" data-exp-id="${exp.id}" title="${exp.name}表情">
+                <span>${exp.emoji}</span> <span>${exp.name}</span>
+              </div>
+            `;
+          }).join('');
+
+          card.innerHTML = `
+            <div class="sprite-preview-box">${previewHtml}</div>
+            <div class="sprite-card-info">
+              <div class="sprite-card-header">
+                <span class="sprite-card-name">${Utils.escapeHtml(char.name)}</span>
+                <span class="sprite-card-role">${Utils.escapeHtml(char.role || '主要角色')}</span>
+              </div>
+              <div class="sprite-expressions-bar">
+                ${pillsHtml}
+              </div>
+              <div class="sprite-card-prompt-box" title="立绘外貌特征词">
+                <strong>基础特征：</strong>${Utils.escapeHtml(char.visualPrompt || '未设置')}
+              </div>
+              <div class="sprite-card-actions">
+                <button type="button" class="btn btn-primary btn-generate-sprite" data-char-id="${charId}" data-exp-id="${activeExpId}">
+                  <i class="fa fa-wand-magic-sparkles"></i> 生成【${currentExp.name}】立绘
                 </button>
-              ` : ''}
+                ${spriteSrc ? `
+                  <button type="button" class="btn btn-secondary btn-clear-sprite" data-char-id="${charId}" data-exp-id="${activeExpId}" title="清除此表情">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                ` : ''}
+              </div>
+              <button type="button" class="sprite-batch-gen-btn" data-char-id="${charId}">
+                <i class="fa fa-bolt"></i> 批量生成全套常用5种表情
+              </button>
             </div>
-          </div>
-        `;
+          `;
 
-        // 绑定生成立绘事件
-        card.querySelector('.btn-generate-sprite')?.addEventListener('click', async () => {
-          await this.generateCharacterSprite(projectId, charId);
-        });
+          // 绑定表情切换点击事件
+          card.querySelectorAll('.expression-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+              activeExpId = pill.getAttribute('data-exp-id');
+              renderCardInner();
+            });
+          });
 
-        // 绑定清除立绘事件
-        card.querySelector('.btn-clear-sprite')?.addEventListener('click', async () => {
-          if (confirm(`确定要移除【${char.name}】的当前立绘吗？`)) {
-            const fresh = await window.projectManager.readCharacters(project);
-            if (fresh?.characters?.[charId]) {
-              fresh.characters[charId].spriteUrl = null;
-              await window.projectManager.writeCharacters(project, fresh);
+          // 绑定生成单表情立绘
+          card.querySelector('.btn-generate-sprite')?.addEventListener('click', async () => {
+            await this.generateCharacterSprite(projectId, charId, activeExpId);
+          });
+
+          // 绑定清除单表情
+          card.querySelector('.btn-clear-sprite')?.addEventListener('click', async () => {
+            if (confirm(`确定要移除【${char.name}】的【${currentExp.name}】表情立绘吗？`)) {
+              const fresh = await window.projectManager.readCharacters(project);
+              if (fresh?.characters?.[charId]) {
+                if (fresh.characters[charId].expressions) {
+                  delete fresh.characters[charId].expressions[activeExpId];
+                }
+                if (activeExpId === 'neutral') {
+                  fresh.characters[charId].spriteUrl = null;
+                }
+                await window.projectManager.writeCharacters(project, fresh);
+              }
+              await this.renderAssetsSprites(projectId);
+              Utils.showNotification(`已移除【${currentExp.name}】表情`, 'info');
             }
-            await this.renderAssetsSprites(projectId);
-            Utils.showNotification('已移除立绘绑定', 'info');
-          }
-        });
+          });
 
+          // 绑定批量生成表情
+          card.querySelector('.sprite-batch-gen-btn')?.addEventListener('click', async () => {
+            await this.batchGenerateExpressions(projectId, charId);
+          });
+        };
+
+        renderCardInner();
         container.appendChild(card);
       }
     } catch (e) {
@@ -1719,9 +1795,12 @@ class App {
   }
 
   /**
-   * 为指定角色 AI 生成立绘并智能自动去底为透明背景
+   * 为指定角色生成指定表情的二次元立绘
+   * @param {string} projectId 
+   * @param {string} charId 
+   * @param {string} expressionId - neutral, happy, blushing, sad, angry, surprised, thinking, smug
    */
-  async generateCharacterSprite(projectId, charId) {
+  async generateCharacterSprite(projectId, charId, expressionId = 'neutral') {
     const aiStatus = window.aiService?.getConfigStatus?.();
     if (!aiStatus || !aiStatus.imageConfigured) {
       Utils.showNotification('请先在设置中配置图像生成 API', 'warning');
@@ -1735,21 +1814,22 @@ class App {
     const char = charData?.characters?.[charId];
     if (!char) return;
 
+    const expPreset = App.SPRITE_EXPRESSIONS.find(e => e.id === expressionId) || App.SPRITE_EXPRESSIONS[0];
     const cardEl = document.querySelector(`.sprite-card[data-char-id="${charId}"]`);
     const btnGen = cardEl?.querySelector('.btn-generate-sprite');
 
     try {
       if (btnGen) {
         btnGen.disabled = true;
-        btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 生成立绘中...';
+        btnGen.innerHTML = `<i class="fa fa-spinner fa-spin"></i> 生成【${expPreset.name}】中...`;
       }
 
-      // 构建高质量二次元视觉小说立绘专用提示词 (半身/胸像，二次元人设立绘，纯净背景便去底)
+      // 构建针对特定表情的高质量二次元视觉小说立绘提示词
       const visual = char.visualPrompt || `${char.name} anime character`;
-      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, clean isolated white background, upper body portrait, waist-up, solo, 1girl, ${visual}, anime visual novel character sprite, character focus, simple background`;
+      const spritePrompt = `masterpiece, best quality, ultra-detailed anime character, transparent background, clean isolated white background, upper body portrait, waist-up, solo, 1girl, ${visual}, ${expPreset.prompt}, anime visual novel character sprite, character focus, simple background`;
 
-      const filename = `sprite_${Date.now()}_${char.name}.png`;
-      Utils.showNotification(`正在为【${char.name}】生成专属立绘，请稍候...`, 'info');
+      const filename = `sprite_${char.name}_${expressionId}_${Date.now()}.png`;
+      Utils.showNotification(`正在为【${char.name}】生成【${expPreset.name}】立绘，请稍候...`, 'info');
 
       const localPath = await window.aiService.generateImage(spritePrompt, {
         projectId: project.id,
@@ -1760,7 +1840,7 @@ class App {
       });
 
       if (localPath) {
-        // 自动扣除白底/浅色背景，转换为真透明 PNG
+        // 自动透明抠图处理
         if (btnGen) btnGen.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 智能透明抠图中...';
         try {
           const fileUrl = window.PathUtils.toFileUrl(localPath);
@@ -1768,20 +1848,27 @@ class App {
           if (transparentDataUrl && transparentDataUrl.startsWith('data:image/png;base64,')) {
             const base64Data = transparentDataUrl.replace(/^data:image\/png;base64,/, '');
             await window.electronAPI.fs.writeFile(localPath, base64Data, 'base64');
-            console.log('✅ 立绘自动去底完成并已持久化');
+            console.log(`✅ 【${char.name}】${expPreset.name}立绘去底完成`);
           }
         } catch (mattingErr) {
           console.warn('立绘透明化处理跳过:', mattingErr);
         }
 
-        // 重新读取最新角色库保存，防止并发覆盖
+        // 保存表情路径到角色库
         const freshCharData = await window.projectManager.readCharacters(project);
         if (!freshCharData.characters) freshCharData.characters = {};
         if (freshCharData.characters[charId]) {
-          freshCharData.characters[charId].spriteUrl = `assets/${filename}`;
+          if (!freshCharData.characters[charId].expressions) {
+            freshCharData.characters[charId].expressions = {};
+          }
+          freshCharData.characters[charId].expressions[expressionId] = `assets/${filename}`;
+          // 如果是 neutral 或默认未设置主立绘，则同步设为默认立绘
+          if (expressionId === 'neutral' || !freshCharData.characters[charId].spriteUrl) {
+            freshCharData.characters[charId].spriteUrl = `assets/${filename}`;
+          }
           await window.projectManager.writeCharacters(project, freshCharData);
         }
-        Utils.showNotification(`【${char.name}】立绘生成并去底完成！`, 'success');
+        Utils.showNotification(`【${char.name}】的【${expPreset.name}】表情立绘生成成功！`, 'success');
         await this.renderAssetsSprites(projectId);
       }
     } catch (e) {
@@ -1790,9 +1877,41 @@ class App {
     } finally {
       if (btnGen) {
         btnGen.disabled = false;
-        btnGen.innerHTML = '<i class="fa fa-wand-magic-sparkles"></i> AI 生成立绘';
+        btnGen.innerHTML = `<i class="fa fa-wand-magic-sparkles"></i> 生成【${expPreset.name}】立绘`;
       }
     }
+  }
+
+  /**
+   * 一键批量生成全套常用5种表情 (日常、开心、害羞、悲伤、生气)
+   */
+  async batchGenerateExpressions(projectId, charId) {
+    const targetExpIds = ['neutral', 'happy', 'blushing', 'sad', 'angry'];
+    const project = window.projectManager.getProjects().find(p => p.id === projectId);
+    if (!project) return;
+
+    const charData = await window.projectManager.readCharacters(project);
+    const char = charData?.characters?.[charId];
+    if (!char) return;
+
+    if (!confirm(`确定要为【${char.name}】一键批量生成 5 种常用表情差分吗？\n(日常微笑、开朗大笑、害羞脸红、悲伤失落、生气傲娇)`)) {
+      return;
+    }
+
+    Utils.showNotification(`开始批量生成【${char.name}】全套表情差分...`, 'info');
+
+    for (let i = 0; i < targetExpIds.length; i++) {
+      const expId = targetExpIds[i];
+      const expPreset = App.SPRITE_EXPRESSIONS.find(e => e.id === expId);
+      Utils.showNotification(`正在生成 (${i + 1}/${targetExpIds.length})：【${expPreset.name}】表情...`, 'info');
+      try {
+        await this.generateCharacterSprite(projectId, charId, expId);
+      } catch (err) {
+        console.warn(`生成表情 ${expId} 失败:`, err);
+      }
+    }
+
+    Utils.showNotification(`【${char.name}】全套常用表情已生成完毕！`, 'success');
   }
 
   /**
