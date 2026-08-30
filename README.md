@@ -1,177 +1,209 @@
 # ArtiMeow AI GalGamer RT
 
-> 基于 **Electron** + **实时 AIGC** 的交互式视觉小说游戏引擎 / GalGame 框架
+> 基于 **Electron** + **实时 AIGC** 的次世代视觉小说游戏引擎 / Galgame 创作与游玩框架
 
 ![ArtiMeow AI GalGamer RT](assets/icon.png)
 
-ArtiMeow AI GalGamer RT 是一个高度可扩展的 GalGame 游戏框架。项目融合了 **LLM 文本生成**、**AI 图像生成**、**立绘与场景解耦渲染**、**固定角色视觉锚点** 以及 **IoT 实时生理数据感知**（心率/SRI），为玩家与开发者提供真正具有分支推演能力与沉浸感的故事生成体验。
+ArtiMeow AI GalGamer RT 是一个高度可扩展、支持实时自生成演进的现代 Galgame / 视觉小说游戏框架。项目深度融合了 **LLM 长篇剧情生成**、**GPT / DALL-E 3 原生透明立绘生成**、**8 大表情差分立绘系统**、**双角色同台光影聚焦**、**多深度全分支并发预载**、**12+1 多槽位存档管理**、**经典 Galgame 键盘操控（Ctrl 快进 / 历史回溯）** 以及 **IoT 实时生理数据感知**（心率/SRI），为玩家与创作者提供真正具备无限分支推演与极致沉浸感的游戏体验。
 
 ---
 
-## 🌟 核心特性
+## 🌟 核心功能特性
 
-### 1. 🎬 立绘与背景解耦 + 说话角色高亮聚焦
-- **解耦图层**：背景图层（`#game-background`）与独立角色立绘图层（`#character-layer`）彻底解耦，AI 可分别生成纯风景背景图与独立角色图。
-- **动态说话高亮**：对白播放时，系统自动识别当前说话角色（`speaker`）：
-  - **说话角色（Speaking）**：立绘自动**放大 1.12 倍**、向上升起浮现、提升亮度和对比度，并放置在最顶层（`z-index: 10`），显示角色姓名浮动框。
-  - **未说话角色（Inactive）**：自动缩小至 **0.95 倍**、亮度降低并进行 20% 灰度沉降，退居背景层（`z-index: 5`）。
-- **保底二次元立绘**：当 PNG 角色透明图尚未下载或生成完成时，自动渲染带有角色配色与名字徽章的 SVG 矢量立绘。
+### 1. 🎭 8 大表情差分立绘与 GPT 原生透明背景引擎
+- **8 大经典 Galgame 情绪预设**：支持 `平静 (neutral)`、`开心微笑 (happy)`、`害羞脸红 (blushing)`、`伤心低落 (sad)`、`生气恼怒 (angry)`、`惊讶吃惊 (surprised)`、`陷入思考 (thinking)`、`得意自信 (smug)`。
+- **一键批量生成**：在「素材管理」中可一键为指定角色批量生成全部 8 种表情差分立绘。
+- **GPT / DALL-E 3 专属透明 PNG 提示词特化**：针对 OpenAI / GPT / DALL-E 3 模型自动注入原生透明通道（`isolated on pure transparent background`, `transparent alpha channel`, `sticker cutout style`）精准提示词，并搭配全自动二进制 PNG 自愈与智能透明去底处理。
+- **游戏内情绪自适应切换**：AI 在推进剧情时根据语境自动标记说话人情绪（`emotion`），立绘瞬间平滑切换至对应表情差分。
 
-### 2. 🎨 固定角色造型锁定锚点（Character Visual Anchors）
-- **持久化角色库（`characters.json`）**：自动锁定主角、女主及 NPC 的外观特征描述词（`visualPrompt`）。
-- **造型稳定**：后续生成任何章节剧情或场景描述时，引擎强制将锁定的角色外观特征送入 AI，防止角色的发型、发色、瞳色、服装等造型在不同场景中随机飘忽变动。
+---
 
-### 3. 🤖 多 AI 模型协议全覆盖
-支持目前主流的各种在线大模型与本地开源大模型 API：
-- **OpenAI**：`gpt-4o-mini`, `gpt-4o`, `dall-e-3`, `dall-e-2`, `chatgpt-4o-latest` (文本与图像生成 API 全系列)
-- **Claude (Anthropic)**：`claude-3-5-sonnet-20241022` (原生支持 `/messages` 接口与 `x-api-key`)
-- **Google Gemini**：`gemini-2.0-flash`, `gemini-1.5-pro` (原生支持 `/models/{model}:generateContent`)
-- **Ollama**：`qwen2.5`, `llama3` (本地免 Key 部署，`/api/generate`)
+### 2. 🎬 视觉立绘沉浸优化与双角色同台光影聚焦
+- **底边贴合（Grounding）**：立绘扎根贴合屏幕底边（占屏幕高度 84%），下半身自然延伸于半透明对话框之后，杜绝半空悬浮感。
+- **双角色同台互动（Dual-Character Staging）**：当场景内存在多名角色时，两人分别自然置于左右两侧（左 `32%`，右 `68%`）同台出场。
+- **动态说话人聚焦高亮**：
+  - **当前说话角色（Speaking）**：高亮聚焦、明亮加深（亮度 108%、立体光影），名牌精准指示；
+  - **未说话角色（Inactive）**：自然淡定旁听（亮度 72%），营造出面对面对话的绝佳临场感。
+
+---
+
+### 3. 📖 单次长篇剧情生成与连续对白序列拆解
+- **饱满长篇情节**：AI 单次输出 300 ~ 600 字丰富剧情内容（包含角色交锋对白、心理独白、环境氛围渲染与动作互动）。
+- **连贯多对话框拆解**：引擎将长篇内容智能拆解为 **6 ~ 12 个连续对白小节（Beats）**，玩家每次生成即可通过按空格或点击连贯阅读 6~12 句台词。
+- **低频分支沉浸设计**：85% 以上场景保持无选项纯享对白连贯阅读，仅在主线关键抉择点提供 2~3 个有深度影响的决策分支。
+
+---
+
+### 4. ⚡ 0~8 幕 / 自定义深度全分支超前并发预生成（Prefetch System）
+- **静默后台预载**：玩家阅读当前对白时，引擎在后台自动超前预生成后续剧情，彻底消除等待旋转圈，实现 0ms 瞬间翻页。
+- **丰富档位配置**：支持 `0次 (关闭)`、`1次`、`2次 (推荐)`、`3次`、`5次`、`8次` 以及 `自定义 (1~20幕)` 预载深度。
+- **分支决策树预加载**：当遇到多选项分支时，后台并发预生成不同选项的后续剧情，玩家做出选择后瞬间呈现。
+
+---
+
+### 5. 💾 12+1 可视化多槽位存档与读档系统 (Save & Load System)
+- **Q.SAVE / Q.LOAD 极速快存快读**：一键瞬间秒存/秒读最近进度，游戏画面右下角弹出精美提醒。
+- **12 个标准多槽位管理**：
+  - 🖼️ **高清场景缩略图**：直观展示当时所处的背景画面；
+  - 👤 **发言角色与情绪标签**：记录说话人物及表情；
+  - 💬 **剧情台词摘要**：截取关键台词片段；
+  - ⏰ **精确时间戳**：精确记录存档生成时间；
+  - 🔄 **覆盖 / 读取 / 一键删除**：支持多档位自由管理。
+
+---
+
+### 6. ⌨️ 经典 Galgame 操控体验
+- **<kbd>Ctrl</kbd> 极速快进 (SKIP)**：**按住键盘 <kbd>Ctrl</kbd> 键**以 60ms 极速快进对白（遇到选项分支自动暂停保护），松开即停。
+- **<kbd>PageUp</kbd> / 滚轮上滑**：打开 **Backlog 对话历史记录面板**，随时回看前文对白与说话人。
+- **<kbd>S</kbd>**：极速快速存档（Q.SAVE）。
+- **<kbd>L</kbd>**：极速快速读档（Q.LOAD）。
+- **<kbd>A</kbd>**：开启 / 关闭自动播放模式（AUTO）。
+- **<kbd>Space</kbd> / <kbd>Enter</kbd>**：跳过打字机动画 / 推进下一句台词。
+- **<kbd>Esc</kbd>**：关闭存档面板或历史回看窗口。
+
+---
+
+### 7. 🤖 多 AI 模型协议全覆盖
+支持主流在线云端大模型与本地开源推理框架：
+- **OpenAI**：`gpt-4o`, `gpt-4o-mini`, `dall-e-3`, `dall-e-2`, `chatgpt-4o-latest` (文本与生图全系列)
+- **Claude (Anthropic)**：`claude-3-5-sonnet-20241022` (原生 `/messages` 接口)
+- **Google Gemini**：`gemini-2.5-flash`, `gemini-3.7-flash-high`, `gemini-2.0-flash`
+- **Ollama / 本地大模型**：`qwen2.5`, `llama3`, `deepseek-r1` (免 Key 本地部署)
 - **llama.cpp**：`/completion` 本地推理服务
-- **Custom API**：兼容任何第三方 OpenAI 格式中转 API
+- **Custom API**：兼容任意第三方 OpenAI 格式中转 API
 
-### 4. 🔍 智能 API 测试与诊断系统
-点击设置面板中的“测试文本 API”或“测试图像 API”时，系统提供精准诊断：
-- **网络连接故障**：DNS 失败、拒绝连接（ECONNREFUSED）、代理/VPN 拦截。
-- **API Key 认证失败**：HTTP 401 / 403 秘钥错误、过期或无访问权限。
-- **模型/路径错误**：HTTP 404 / 400 模型不存在或拼写错误。
-- **频次/额度限制**：HTTP 429 频率过高或账户余额不足。
-- **真实数据校验与预览**：测试成功后回显并校验**真实返回的生成文本**或**图像 URL 预览**。
+---
 
-### 5. ⚡ 实时防抖自动保存与预设分发
-- **实时自动保存**：在设置界面中填写 API Key、URL 或模型名称时，输入停止 300ms 后或输入框失焦时自动进行保存。
-- **预设自动填充**：切换 API 类型时自动填充对应服务商的默认 URL 与最佳推荐模型。
-
-### 6. ❤️ IoT 实时生理数据感知 (IoT Integration)
-- 支持蓝牙 BLE / 串口连接心率手环或 SRI 测谎设备，将玩家实时的生理数据融入 AI 逻辑中，动态调整故事刺激程度、浪漫尺度与剧情节奏。
-
-### 7. 📜 交互式时间线与无损备份
-- 树状时间线节点管理，支持在任意分支节点进行检查点存档、历史回档与无损分支备份。
+### 8. 🖼️ 素材管理库 (Asset Library)
+- **角色立绘库**：按角色查看所有表情差分立绘，支持单独生成、批量全量生成与原图大图全屏预览。
+- **场景背景库**：集中展示游戏中生成的所有场景背景图，悬浮展示提示词（Prompt），支持一键全屏检视。
 
 ---
 
 ## 📁 目录结构
 
 ```text
-ArtiMeow-AIGalGamerRT/
+AI-Galgame/
 ├── assets/                    # 软件图标与通用静态资源
 │   ├── icon.ico              # Windows 可执行程序图标
 │   ├── icon.icns             # macOS 应用图标
 │   └── icon.png              # Linux / 网页端图标
-├── dist/                      # 构建打包产物输出目录 (.exe, win-unpacked)
-├── scripts/
-│   └── postinstall.js        # npm install 后的 Electron 解压与二进制路径修正脚本
+├── dist/                      # 构建打包产物目录 (.exe, win-unpacked)
 ├── src/
 │   ├── main.js                # Electron 主进程 (窗口管理、IPC 通信、存储分发)
 │   ├── preload.js             # 预加载脚本 (安全暴露 window.electronAPI 接口)
 │   └── renderer/              # 渲染进程前端代码
-│       ├── index.html         # 游戏主界面 (包含主页卡片网格与游戏舞台)
+│       ├── index.html         # 游戏主界面 (包含主页网格、游戏舞台、12槽位存档面板)
 │       ├── settings.html      # 系统与 AI 设置面板
 │       ├── styles/            # 样式文件目录
-│       │   ├── main.css       # 游戏核心样式 (包含 .character-layer 与视效动画)
+│       │   ├── main.css       # 游戏核心样式 (立绘图层、对话框、HUD、存档面板)
 │       │   └── settings.css   # 设置面板样式
-│       └── js/                # 核心逻辑模块
-│           ├── main.js        # 主界面初始化与事件绑定
-│           ├── game-engine.js # 游戏引擎 (打字机效果、对话渲染、说话角色高亮)
-│           ├── ai-service.js   # AI 服务 (文本生成、图像生成、多协议兼容、诊断)
+│       └── js/                # 核心业务模块
+│           ├── main.js        # 主界面控制器、素材库管理、表情差分批量生成
+│           ├── game-engine.js # 游戏引擎 (长篇对白Beat播放、Ctrl快进、多槽位存档、预载)
+│           ├── ai-service.js   # AI 服务 (多协议适配、JSON多层自愈修复、GPT透明提示词)
 │           ├── project-manager.js # 项目生命周期、时间线存档、读取/写入 characters.json
-│           ├── settings.js    # 设置面板控制器 (实时自动保存、预设切换、API 测试)
+│           ├── settings.js    # 设置面板控制器 (实时自动保存、API 测试诊断)
 │           ├── background-manager.js # 主页动态背景生成器
 │           ├── iot-manager.js # IoT 设备通讯管理器
 │           ├── path-utils.js  # 本地文件路径与 file:// 协议转换工具
-│           ├── timeline.js    # 时间线视图渲染
-│           └── utils.js       # 通用工具函数 (模态框、防抖、通知)
-├── package.json               # 项目依赖、electron-builder 构建配置与 allowScripts
-└── README.md                  # 开发与使用文档
+│           ├── timeline.js    # 交互式时间线视图渲染
+│           └── utils.js       # 通用工具函数 (透明抠图、模态框、通知)
+├── package.json               # 项目依赖与 electron-builder 构建配置
+└── README.md                  # 项目开发与使用文档
 ```
 
 ---
 
-## 🛠️ 项目环境搭建
+## 🛠️ 项目环境搭建与运行
 
 ### 1. 环境要求
 - **Node.js**: `v18.0.0` 或更高版本
 - **npm**: `v9.0.0` 或更高版本
 
 ### 2. 安装依赖
-由于 Electron 38 及原生 C++ 模块（如 `@serialport/bindings-cpp`）需要脚本执行权限，在 package.json 中配置了 `allowScripts`：
 
 ```bash
 npm install
 ```
 
-> **注意**：`npm install` 完成后，系统会自动运行 `scripts/postinstall.js` 确保 Electron 可执行文件完全解压并清理 `path.txt` 中的换行符。
-
 ### 3. 开发模式启动
 
 ```bash
+npm start
+# 或
 npm run dev
 ```
 
-启动后将自动弹出 Electron 游戏主界面，按 `F12` 可打开开发者工具查看控制台输出（带 `[AIService]`、`[GameEngine]` 前缀的日志）。
+启动后将自动打开游戏主窗口：
+- 按 **<kbd>Ctrl</kbd> + <kbd>R</kbd>** 可热刷新前端代码；
+- 按 **<kbd>F12</kbd>** 可打开开发者工具控制台查看实时日志。
 
 ---
 
-## 📦 应用打包 (打包为 Windows `.exe`)
-
-项目已配置好跨平台打包参数（使用 `electron-builder`，且已开启 `"npmRebuild": false` 以防止在 macOS 上交叉编译 Windows C++ 原生模块报错）。
-
-### 构建 Windows .exe 安装包与绿色免安装版
-
-在 macOS 或 Windows 环境下执行：
+## 📦 应用构建打包 (Windows `.exe`)
 
 ```bash
 # 编译打包 Windows x64 版本
 npm run build -- --win --x64
 ```
 
-打包完成后，产物将生成在 `dist/` 文件夹中：
-1. **Windows 安装程序**：`dist/ArtiMeow AI GalGamer RT Setup 1.2.0.exe` (NSIS 安装包)
-2. **Windows 绿色免安装版**：`dist/win-unpacked/ArtiMeow AI GalGamer RT.exe` (解压即可运行)
+打包完成后产物位于 `dist/` 目录下：
+1. **安装程序**：`dist/ArtiMeow AI GalGamer RT Setup 1.2.0.exe` (NSIS 安装包)
+2. **绿色免安装版**：`dist/win-unpacked/ArtiMeow AI GalGamer RT.exe` (解压直接运行)
 
 ---
 
-## 📄 数据结构说明
+## 📄 数据结构规范
 
-每个游戏项目存放在用户数据目录中，包含以下标准文件结构：
+每个游戏项目存放在项目工作区中，包含以下标准文件结构：
 
-### 1. 角色定义文件 (`characters.json`)
+### 1. 角色库定义文件 (`characters.json`)
 ```json
 {
   "characters": {
-    "char_sakura": {
-      "id": "char_sakura",
-      "name": "樱",
-      "summary": "男主角的青梅竹马，性格活泼开朗",
-      "visualPrompt": "17yo anime girl, long pink hair with red hair ribbon, amber eyes, blue sailor school uniform",
-      "avatarUrl": "assets/sprites/char_sakura.png",
-      "tags": ["青梅竹马", "学生"],
-      "metadata": { "身份": "高二学生" }
+    "char_miyuki": {
+      "id": "char_miyuki",
+      "name": "曾根美雪",
+      "summary": "才色兼备的优等生，演剧部部员",
+      "visualPrompt": "17yo anime girl, long dark brown hair, amber eyes, school uniform, delicate features",
+      "spriteUrl": "assets/sprite_曾根美雪_neutral.png",
+      "expressions": {
+        "neutral": "assets/sprite_曾根美雪_neutral.png",
+        "happy": "assets/sprite_曾根美雪_happy.png",
+        "blushing": "assets/sprite_曾根美雪_blushing.png",
+        "sad": "assets/sprite_曾根美雪_sad.png",
+        "angry": "assets/sprite_曾根美雪_angry.png",
+        "surprised": "assets/sprite_曾根美雪_surprised.png",
+        "thinking": "assets/sprite_曾根美雪_thinking.png",
+        "smug": "assets/sprite_曾根美雪_smug.png"
+      }
     }
   }
 }
 ```
 
-### 2. 时间线节点格式 (`timeline/node_xxx.json`)
+### 2. 存档槽位数据结构 (`saves/slot_1.json` / `saves/quick_save.json`)
 ```json
 {
-  "id": "node_1693000000000",
-  "timestamp": 1693000000000,
-  "content": {
-    "dialogue": "今天的天气真好啊，要一起去图书馆吗？",
-    "speaker": "樱",
-    "activeCharacters": [
-      { "name": "樱", "position": "center", "expression": "happy" }
-    ],
-    "backgroundPrompt": "sunset empty anime classroom, highly detailed, warm ambient lighting, no characters",
-    "backgroundUrl": "assets/background_1693000000000.png",
-    "choices": [
-      { "id": 1, "text": "好啊，刚好想借几本书", "action": "continue" },
-      { "id": 2, "text": "抱歉，今天社团有活动", "action": "continue" }
-    ],
-    "chapterSummary": "放学后的教室放学邀请"
-  }
+  "slotId": 1,
+  "savedAt": "2026-08-30T22:30:00.000Z",
+  "dialogueSnippet": "「放学后一起去天台吹吹风吧。」",
+  "speaker": "曾根美雪",
+  "speakerEmotion": "happy",
+  "backgroundUrl": "assets/background_classroom_sunset.png",
+  "timelineNode": { ... },
+  "knowledgeBase": { ... },
+  "characters": { ... },
+  "dialogues": [ ... ],
+  "activeBeatIndex": 3
 }
 ```
+
+---
+
+## 📜 开源协议
+
+本项目基于 [B5-Software Free and Open Knowledge Public License](LICENSE.md) 开源。
 
 
