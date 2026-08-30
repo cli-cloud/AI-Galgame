@@ -204,13 +204,18 @@
                         <span id="choice-hint" class="hidden">使用方向键或鼠标选择</span>
                     </div>
                     <div class="hud-controls">
-                        <button id="btn-log" class="hud-btn" title="对话历史 (滚轮上滑)"><i class="fa fa-clock-rotate-left"></i> LOG</button>
+                        <button id="btn-qsave" class="hud-btn" title="快速存档 (快捷键 S)"><i class="fa fa-floppy-disk"></i> Q.SAVE</button>
+                        <button id="btn-qload" class="hud-btn" title="快速读档 (快捷键 L)"><i class="fa fa-folder-open"></i> Q.LOAD</button>
+                        <button id="btn-save" class="hud-btn" title="存档菜单"><i class="fa fa-bookmark"></i> SAVE</button>
+                        <button id="btn-load" class="hud-btn" title="读档菜单"><i class="fa fa-box-archive"></i> LOAD</button>
+                        <button id="btn-auto" class="hud-btn" title="自动播放 (快捷键 A)"><i class="fa fa-play"></i> AUTO</button>
+                        <button id="btn-skip" class="hud-btn" title="快进"><i class="fa fa-forward"></i> SKIP</button>
+                        <button id="btn-log" class="hud-btn" title="历史记录 (滚轮上滑)"><i class="fa fa-clock-rotate-left"></i> LOG</button>
                         <button id="btn-custom" class="hud-btn" title="自定义输入"><i class="fa fa-keyboard"></i> CUSTOM</button>
                         <div id="custom-input" class="custom-input hidden">
                             <input id="custom-text" type="text" placeholder="输入你的想法/选择..." maxlength="200" />
                             <button id="custom-submit" class="btn btn-primary btn-sm"><i class="fa fa-paper-plane"></i></button>
                         </div>
-                        <button id="btn-skip" class="hud-btn" title="快进"><i class="fa fa-forward"></i> SKIP</button>
                     </div>
                 </div>
 
@@ -474,6 +479,38 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closePrefetchSettingsModal()">取消</button>
                     <button type="button" class="btn btn-primary" id="btn-save-prefetch-settings"><i class="fa fa-check"></i> 保存设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏存档与读档管理器 (SAVE / LOAD MODAL) -->
+        <div id="save-load-modal" class="modal" style="z-index: 1300;">
+            <div class="modal-content extra-large save-load-modal-container">
+                <div class="modal-header save-load-header">
+                    <div class="save-load-tabs">
+                        <button class="save-load-tab-btn active" id="tab-save-mode" onclick="window.gameEngine.switchSaveLoadMode('save')">
+                            <i class="fa fa-bookmark"></i> 游戏存档 (SAVE)
+                        </button>
+                        <button class="save-load-tab-btn" id="tab-load-mode" onclick="window.gameEngine.switchSaveLoadMode('load')">
+                            <i class="fa fa-box-archive"></i> 游戏读档 (LOAD)
+                        </button>
+                    </div>
+                    <div class="save-load-header-right">
+                        <span class="save-load-mode-hint" id="save-load-mode-hint">点击对应槽位即可保存当前进度</span>
+                        <button class="btn-close" onclick="window.gameEngine.closeSaveLoadModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div class="modal-body save-load-body">
+                    <!-- 快速存档快捷卡片 -->
+                    <div class="quick-save-section" id="quick-save-section">
+                        <div class="quick-save-card" id="quick-save-slot-card">
+                            <!-- 动态渲染 Q.SAVE 槽位 -->
+                        </div>
+                    </div>
+                    <!-- 标准多槽位网格 (1~12个槽位) -->
+                    <div class="save-slots-grid" id="save-slots-grid">
+                        <!-- 动态渲染 1~12 槽位卡片 -->
+                    </div>
                 </div>
             </div>
         </div>

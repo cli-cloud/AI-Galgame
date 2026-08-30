@@ -3408,6 +3408,278 @@ body.theme-light .form-group textarea::placeholder { color: #6b7280; }
   outline: none;
 }
 
+/* ========================================================
+   游戏多槽位存档/读档系统 (SAVE / LOAD SYSTEM) 样式
+   ======================================================== */
+.save-load-modal-container {
+  max-width: 1080px !important;
+  width: 95% !important;
+  max-height: 92vh !important;
+  background: rgba(14, 16, 28, 0.95) !important;
+  border: 1.5px solid rgba(255, 105, 180, 0.3) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 32px rgba(255, 105, 180, 0.15) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.save-load-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.save-load-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.save-load-tab-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.save-load-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.save-load-tab-btn.active {
+  background: linear-gradient(135deg, rgba(255, 105, 180, 0.3), rgba(102, 126, 234, 0.3));
+  border-color: var(--primary-color, #ff69b4);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 105, 180, 0.3);
+}
+
+.save-load-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.save-load-mode-hint {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.save-load-body {
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  max-height: calc(92vh - 120px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 快速存档专属卡片栏 */
+.quick-save-section {
+  margin-bottom: 4px;
+}
+
+.save-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 14px;
+}
+
+.save-slot-card {
+  background: rgba(24, 27, 44, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  cursor: pointer;
+}
+
+.save-slot-card:hover {
+  border-color: var(--primary-color, #ff69b4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 105, 180, 0.2);
+}
+
+.save-slot-card.is-quick {
+  background: rgba(36, 24, 48, 0.8);
+  border-color: rgba(255, 105, 180, 0.35);
+}
+
+.save-slot-card.is-empty {
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(20, 22, 36, 0.4);
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-slot-card.is-empty:hover {
+  border-color: rgba(255, 105, 180, 0.5);
+  background: rgba(255, 105, 180, 0.05);
+}
+
+.slot-empty-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 30px 10px;
+}
+
+.slot-empty-body i {
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+.slot-thumbnail-container {
+  height: 120px;
+  width: 100%;
+  position: relative;
+  background: #0d0f18;
+  overflow: hidden;
+}
+
+.slot-thumbnail-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slot-thumbnail-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(14, 16, 28, 0.9) 0%, transparent 60%);
+}
+
+.slot-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.5px;
+}
+
+.slot-badge.qsave-badge {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  border-color: transparent;
+}
+
+.slot-timestamp {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.slot-content-body {
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.slot-speaker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-speaker-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #ff9acb;
+}
+
+.slot-emotion-tag {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.slot-dialogue-snippet {
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 36px;
+}
+
+.slot-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.slot-action-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.slot-action-btn:hover {
+  background: var(--primary-color, #ff69b4);
+  border-color: var(--primary-color, #ff69b4);
+}
+
+.slot-action-btn.btn-delete {
+  flex: 0 0 32px;
+  color: var(--text-muted);
+}
+
+.slot-action-btn.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 
 
 

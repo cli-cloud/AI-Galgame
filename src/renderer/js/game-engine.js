@@ -245,6 +245,36 @@ class GameEngine {
       gameArea.addEventListener('click', onAdvanceTrigger);
     }
 
+    // 快速存档 (Q.SAVE)
+    const btnQSave = document.getElementById('btn-qsave');
+    if (btnQSave) {
+      btnQSave.addEventListener('click', () => this.quickSave());
+    }
+
+    // 快速读档 (Q.LOAD)
+    const btnQLoad = document.getElementById('btn-qload');
+    if (btnQLoad) {
+      btnQLoad.addEventListener('click', () => this.quickLoad());
+    }
+
+    // 存档菜单 (SAVE)
+    const btnSave = document.getElementById('btn-save');
+    if (btnSave) {
+      btnSave.addEventListener('click', () => this.openSaveModal());
+    }
+
+    // 读档菜单 (LOAD)
+    const btnLoad = document.getElementById('btn-load');
+    if (btnLoad) {
+      btnLoad.addEventListener('click', () => this.openLoadModal());
+    }
+
+    // 自动播放 (AUTO)
+    const btnAuto = document.getElementById('btn-auto');
+    if (btnAuto) {
+      btnAuto.addEventListener('click', () => this.toggleAutoMode());
+    }
+
     // 对话历史 (Backlog) 按钮与控制
     const btnLog = document.getElementById('btn-log');
     if (btnLog) {
@@ -319,15 +349,15 @@ class GameEngine {
         }
       }
 
+      // 焦点在输入框或文本域中时不触发游戏全局快捷键
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        return;
+      }
+
       switch (e.key) {
         case ' ': // 空格键
           e.preventDefault();
           e.stopPropagation(); // 阻止事件传播
-          console.log('空格键按下 - 当前状态:', {
-            isWaitingForChoice: this.isWaitingForChoice,
-            isGenerating: this.isGenerating,
-            typing: document.getElementById('dialogue-text')?.dataset.typing
-          });
           
           if (this.isWaitingForChoice) {
             this.selectCurrentChoice();
@@ -335,28 +365,43 @@ class GameEngine {
             // 空格跳过打字机：若正在打字，瞬间填满文本并显示选项
             const dialogueText = document.getElementById('dialogue-text');
             if (dialogueText && dialogueText.dataset.typing === 'true') {
-              console.log('中断打字机效果，填充完整文本');
               const full = dialogueText.dataset.fullText || '';
               dialogueText.textContent = full;
               dialogueText.dataset.typing = 'false';
               
-              // 若存在选择，立即展示
               if (this.currentTimeline?.content?.choices?.length > 0) {
-                console.log('显示选择选项');
                 this.currentChoices = this.currentTimeline.content.choices;
                 this.displayChoices(this.currentChoices);
                 this.isWaitingForChoice = true;
               }
             } else {
-              console.log('继续故事');
               this.continueStory();
             }
           }
           break;
 
-        case 'PageUp':
+        case 's':
+        case 'S':
+          e.preventDefault();
+          e.stopPropagation();
+          this.quickSave();
+          break;
+
         case 'l':
         case 'L':
+          e.preventDefault();
+          e.stopPropagation();
+          this.quickLoad();
+          break;
+
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          e.stopPropagation();
+          this.toggleAutoMode();
+          break;
+
+        case 'PageUp':
           e.preventDefault();
           e.stopPropagation();
           this.showBacklog();
@@ -389,7 +434,10 @@ class GameEngine {
         case 'Escape':
           e.preventDefault();
           e.stopPropagation();
-          if (isBacklogOpen) {
+          const saveLoadModal = document.getElementById('save-load-modal');
+          if (saveLoadModal && saveLoadModal.classList.contains('active')) {
+            this.closeSaveLoadModal();
+          } else if (isBacklogOpen) {
             this.hideBacklog();
           } else {
             this.pauseGame();
@@ -1899,6 +1947,394 @@ class GameEngine {
       isWaitingForChoice: this.isWaitingForChoice,
       choicesCount: this.currentChoices.length
     };
+  }
+
+  /* ========================================================
+     多槽位存档与读档系统 (SAVE & LOAD SYSTEM)
+     ======================================================== */
+
+  /**
+   * 自动播放模式切换 (AUTO)
+   */
+  toggleAutoMode() {
+    this.autoMode = !this.autoMode;
+    const btnAuto = document.getElementById('btn-auto');
+    if (btnAuto) {
+      if (this.autoMode) {
+        btnAuto.classList.add('active');
+        Utils.showNotification('▶️ 自动播放已开启', 'info');
+        this.runAutoPlayLoop();
+      } else {
+        btnAuto.classList.remove('active');
+        Utils.showNotification('⏸️ 自动播放已关闭', 'info');
+      }
+    }
+  }
+
+  async runAutoPlayLoop() {
+    if (!this.autoMode || this.gameState !== 'playing') return;
+    if (!this.isWaitingForChoice && !this.isGenerating) {
+      const dialogueText = document.getElementById('dialogue-text');
+      if (!dialogueText || dialogueText.dataset.typing !== 'true') {
+        await this.continueStory();
+      }
+    }
+    if (this.autoMode) {
+      setTimeout(() => this.runAutoPlayLoop(), 2800);
+    }
+  }
+
+  /**
+   * 快速存档 (Q.SAVE)
+   */
+  async quickSave() {
+    if (!this.currentProject || !this.currentTimeline) {
+      Utils.showNotification('当前没有进行中的剧情可存档', 'warning');
+      return;
+    }
+
+    try {
+      const savesDir = `${this.currentProject.path}/saves`;
+      await window.electronAPI.fs.ensureDir(savesDir);
+
+      const saveData = this.buildSaveDataObject('qsave');
+      await window.electronAPI.fs.writeJson(`${savesDir}/quick_save.json`, saveData);
+
+      console.log('⚡ [QuickSave] 快速存档成功:', saveData.dialogueSnippet);
+      Utils.showNotification('⚡ 快速存档成功 (Q.SAVE)', 'success');
+    } catch (err) {
+      console.error('快速存档失败:', err);
+      Utils.showNotification('快速存档失败', 'error');
+    }
+  }
+
+  /**
+   * 快速读档 (Q.LOAD)
+   */
+  async quickLoad() {
+    if (!this.currentProject) {
+      Utils.showNotification('请先进入游戏', 'warning');
+      return;
+    }
+
+    try {
+      const qsavePath = `${this.currentProject.path}/saves/quick_save.json`;
+      if (!(await window.electronAPI.fs.exists(qsavePath))) {
+        Utils.showNotification('未找到快速存档记录', 'info');
+        return;
+      }
+
+      const saveData = await window.electronAPI.fs.readJson(qsavePath);
+      await this.loadSaveData(saveData);
+      Utils.showNotification('⚡ 快速读档成功！', 'success');
+    } catch (err) {
+      console.error('快速读档失败:', err);
+      Utils.showNotification('快速读档失败', 'error');
+    }
+  }
+
+  /**
+   * 打开存档界面 (SAVE)
+   */
+  async openSaveModal() {
+    this.saveLoadMode = 'save';
+    await this.renderSaveSlots();
+    const modal = document.getElementById('save-load-modal');
+    if (modal) modal.classList.add('active');
+  }
+
+  /**
+   * 打开读档界面 (LOAD)
+   */
+  async openLoadModal() {
+    this.saveLoadMode = 'load';
+    await this.renderSaveSlots();
+    const modal = document.getElementById('save-load-modal');
+    if (modal) modal.classList.add('active');
+  }
+
+  /**
+   * 关闭存档/读档模态框
+   */
+  closeSaveLoadModal() {
+    const modal = document.getElementById('save-load-modal');
+    if (modal) modal.classList.remove('active');
+  }
+
+  /**
+   * 切换存档/读档模式
+   */
+  async switchSaveLoadMode(mode) {
+    this.saveLoadMode = mode;
+    const tabSave = document.getElementById('tab-save-mode');
+    const tabLoad = document.getElementById('tab-load-mode');
+    const hint = document.getElementById('save-load-mode-hint');
+
+    if (mode === 'save') {
+      tabSave?.classList.add('active');
+      tabLoad?.classList.remove('active');
+      if (hint) hint.textContent = '点击任意槽位即可覆盖或保存当前游戏进度';
+    } else {
+      tabSave?.classList.remove('active');
+      tabLoad?.classList.add('active');
+      if (hint) hint.textContent = '点击已有存档槽位即可快速读取并继续游玩';
+    }
+
+    await this.renderSaveSlots();
+  }
+
+  /**
+   * 构建存档数据对象
+   */
+  buildSaveDataObject(slotId) {
+    const content = this.currentTimeline?.content || {};
+    return {
+      slotId: slotId,
+      savedAt: new Date().toISOString(),
+      dialogueSnippet: content.dialogue || (this.currentBeatQueue ? this.currentBeatQueue[this.currentBeatIndex]?.text : '') || '',
+      speaker: content.speaker || (this.currentBeatQueue ? this.currentBeatQueue[this.currentBeatIndex]?.speaker : '旁白') || '旁白',
+      speakerEmotion: content.speakerEmotion || (this.currentBeatQueue ? this.currentBeatQueue[this.currentBeatIndex]?.emotion : 'neutral') || 'neutral',
+      backgroundUrl: content.backgroundUrl || null,
+      timelineNode: this.currentTimeline,
+      knowledgeBase: this.currentProject.knowledgeBase || {},
+      characters: this.currentProject.characters || {},
+      dialogues: content.dialogues || this.currentBeatQueue || null,
+      activeBeatIndex: this.currentBeatIndex || 0,
+      activeCharacters: content.activeCharacters || []
+    };
+  }
+
+  /**
+   * 保存到指定槽位 (1 ~ 12 或 qsave)
+   */
+  async saveToSlot(slotId) {
+    if (!this.currentProject || !this.currentTimeline) {
+      Utils.showNotification('当前没有进行中的剧情可存档', 'warning');
+      return;
+    }
+
+    try {
+      const savesDir = `${this.currentProject.path}/saves`;
+      await window.electronAPI.fs.ensureDir(savesDir);
+
+      const saveData = this.buildSaveDataObject(slotId);
+      const filePath = slotId === 'qsave' ? `${savesDir}/quick_save.json` : `${savesDir}/slot_${slotId}.json`;
+
+      await window.electronAPI.fs.writeJson(filePath, saveData);
+      Utils.showNotification(`💾 存档成功 (槽位 ${slotId === 'qsave' ? 'Q.SAVE' : slotId})`, 'success');
+      await this.renderSaveSlots();
+    } catch (err) {
+      console.error('保存存档失败:', err);
+      Utils.showNotification('保存存档失败', 'error');
+    }
+  }
+
+  /**
+   * 从指定槽位读取存档
+   */
+  async loadFromSlot(slotId) {
+    if (!this.currentProject) return;
+
+    try {
+      const savesDir = `${this.currentProject.path}/saves`;
+      const filePath = slotId === 'qsave' ? `${savesDir}/quick_save.json` : `${savesDir}/slot_${slotId}.json`;
+
+      if (!(await window.electronAPI.fs.exists(filePath))) {
+        Utils.showNotification('该槽位暂无存档', 'info');
+        return;
+      }
+
+      const saveData = await window.electronAPI.fs.readJson(filePath);
+      await this.loadSaveData(saveData);
+      this.closeSaveLoadModal();
+      Utils.showNotification(`📂 读取存档成功 (槽位 ${slotId === 'qsave' ? 'Q.SAVE' : slotId})`, 'success');
+    } catch (err) {
+      console.error('读取存档失败:', err);
+      Utils.showNotification('读取存档失败', 'error');
+    }
+  }
+
+  /**
+   * 删除指定槽位存档
+   */
+  async deleteSaveSlot(slotId, event) {
+    if (event) event.stopPropagation();
+    if (!this.currentProject) return;
+    if (!confirm(`确定要删除【${slotId === 'qsave' ? '快速存档' : '槽位 ' + slotId}】的存档数据吗？`)) {
+      return;
+    }
+
+    try {
+      const savesDir = `${this.currentProject.path}/saves`;
+      const filePath = slotId === 'qsave' ? `${savesDir}/quick_save.json` : `${savesDir}/slot_${slotId}.json`;
+      if (await window.electronAPI.fs.exists(filePath)) {
+        await window.electronAPI.fs.unlink(filePath);
+      }
+      Utils.showNotification('存档已删除', 'info');
+      await this.renderSaveSlots();
+    } catch (err) {
+      console.error('删除存档失败:', err);
+      Utils.showNotification('删除存档失败', 'error');
+    }
+  }
+
+  /**
+   * 应用存档数据并恢复游戏状态
+   */
+  async loadSaveData(saveData) {
+    if (!saveData || !saveData.timelineNode) {
+      throw new Error('无效的存档数据');
+    }
+
+    // 1. 恢复核心状态
+    this.currentTimeline = saveData.timelineNode;
+    this.currentProject.currentTimeline = saveData.timelineNode;
+    this.currentProject.knowledgeBase = saveData.knowledgeBase || {};
+    this.currentProject.characters = saveData.characters || {};
+
+    // 2. 清空预载队列以防与读档后的分支冲突
+    this.prefetchQueue = [];
+    this.branchPrefetchMap = {};
+
+    // 3. 恢复 Beat 进度与对白队列
+    this.currentBeatQueue = saveData.dialogues || saveData.timelineNode.content?.dialogues || null;
+    this.currentBeatIndex = saveData.activeBeatIndex || 0;
+
+    // 4. 恢复背景
+    const bgUrl = saveData.backgroundUrl || saveData.timelineNode.content?.backgroundUrl;
+    if (bgUrl) {
+      const fullBg = bgUrl.startsWith('assets/') ? `${this.currentProject.path}/${bgUrl}` : bgUrl;
+      this.setBackgroundImage(window.PathUtils.toFileUrl(fullBg));
+    }
+
+    // 5. 呈现内容
+    await this.displayContent(saveData.timelineNode.content);
+
+    // 6. 更新时间线管理器
+    if (window.timeline) {
+      window.timeline.setCurrentNode(saveData.timelineNode);
+    }
+
+    // 7. 启动后台预载填充
+    setTimeout(() => this.triggerPrefetch(), 600);
+  }
+
+  /**
+   * 渲染存档/读档多槽位列表
+   */
+  async renderSaveSlots() {
+    const qSaveContainer = document.getElementById('quick-save-slot-card');
+    const gridContainer = document.getElementById('save-slots-grid');
+    if (!gridContainer || !this.currentProject) return;
+
+    const isSaveMode = this.saveLoadMode === 'save';
+    const savesDir = `${this.currentProject.path}/saves`;
+    await window.electronAPI.fs.ensureDir(savesDir);
+
+    // 读取快速存档与 12 个普通槽位
+    const allSlots = ['qsave', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const slotDataMap = {};
+
+    for (const sId of allSlots) {
+      const fPath = sId === 'qsave' ? `${savesDir}/quick_save.json` : `${savesDir}/slot_${sId}.json`;
+      try {
+        if (await window.electronAPI.fs.exists(fPath)) {
+          slotDataMap[sId] = await window.electronAPI.fs.readJson(fPath);
+        }
+      } catch (e) {
+        console.warn(`读取槽位 ${sId} 失败:`, e);
+      }
+    }
+
+    // 格式化时间戳帮助函数
+    const formatTime = (iso) => {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+    };
+
+    // 渲染卡片 HTML 辅助函数
+    const renderCardHtml = (sId, data) => {
+      const isQ = sId === 'qsave';
+      const badgeLabel = isQ ? '⚡ Q.SAVE 快速存档' : `SLOT ${String(sId).padStart(2, '0')}`;
+      const badgeClass = isQ ? 'qsave-badge' : '';
+
+      if (!data) {
+        // 空槽位
+        if (isSaveMode) {
+          return `
+            <div class="save-slot-card is-empty" onclick="window.gameEngine.saveToSlot('${sId}')">
+              <div class="slot-empty-body">
+                <i class="fa fa-plus-circle"></i>
+                <div style="font-weight: 600; color: #e2e8f0;">${badgeLabel}</div>
+                <div style="font-size: 0.78rem;">【空槽位】点击保存当前进度</div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="save-slot-card is-empty" style="opacity: 0.5; cursor: not-allowed;">
+              <div class="slot-empty-body">
+                <i class="fa fa-ban"></i>
+                <div style="font-weight: 600; color: var(--text-muted);">${badgeLabel}</div>
+                <div style="font-size: 0.78rem;">【无存档数据】</div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // 已有存档卡片
+      let bgSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150"><rect width="300" height="150" fill="%231a1d2e"/></svg>';
+      if (data.backgroundUrl) {
+        const fullBg = data.backgroundUrl.startsWith('assets/') ? `${this.currentProject.path}/${data.backgroundUrl}` : data.backgroundUrl;
+        bgSrc = window.PathUtils.toFileUrl(fullBg);
+      }
+
+      const speaker = data.speaker || '旁白';
+      const snippet = data.dialogueSnippet || '（无对白记录）';
+      const timeStr = formatTime(data.savedAt);
+      const actionText = isSaveMode ? '<i class="fa fa-floppy-disk"></i> 覆盖此存档' : '<i class="fa fa-folder-open"></i> 读取此存档';
+      const clickAction = isSaveMode ? `window.gameEngine.saveToSlot('${sId}')` : `window.gameEngine.loadFromSlot('${sId}')`;
+
+      return `
+        <div class="save-slot-card ${isQ ? 'is-quick' : ''}" onclick="${clickAction}">
+          <div class="slot-thumbnail-container">
+            <img class="slot-thumbnail-bg" src="${bgSrc}" alt="存档缩略图" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'300\\' height=\\'150\\'><rect width=\\'300\\' height=\\'150\\' fill=\\'%231a1d2e\\'/></svg>'" />
+            <div class="slot-thumbnail-gradient"></div>
+            <div class="slot-badge ${badgeClass}">${badgeLabel}</div>
+            <div class="slot-timestamp"><i class="fa fa-clock"></i> ${timeStr}</div>
+          </div>
+          <div class="slot-content-body">
+            <div class="slot-speaker-row">
+              <span class="slot-speaker-name"><i class="fa fa-user"></i> ${Utils.escapeHtml(speaker)}</span>
+              ${data.speakerEmotion && data.speakerEmotion !== 'neutral' ? `<span class="slot-emotion-tag">${Utils.escapeHtml(data.speakerEmotion)}</span>` : ''}
+            </div>
+            <div class="slot-dialogue-snippet">${Utils.escapeHtml(snippet)}</div>
+            <div class="slot-actions-row">
+              <button class="slot-action-btn" onclick="event.stopPropagation(); ${clickAction}">
+                ${actionText}
+              </button>
+              <button class="slot-action-btn btn-delete" title="删除存档" onclick="window.gameEngine.deleteSaveSlot('${sId}', event)">
+                <i class="fa fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    // 渲染 Q.SAVE 槽位
+    if (qSaveContainer) {
+      qSaveContainer.innerHTML = renderCardHtml('qsave', slotDataMap['qsave']);
+    }
+
+    // 渲染 1~12 普通槽位
+    const gridHtml = [];
+    for (let i = 1; i <= 12; i++) {
+      gridHtml.push(renderCardHtml(i, slotDataMap[i]));
+    }
+    gridContainer.innerHTML = gridHtml.join('');
   }
 
   /**
