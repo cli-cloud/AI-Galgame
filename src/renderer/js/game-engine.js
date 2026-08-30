@@ -1685,15 +1685,18 @@ class GameEngine {
 
     if (Array.isArray(content.activeCharacters) && content.activeCharacters.length > 0) {
       sceneCharacters = content.activeCharacters;
-    } else if (currentSpeaker && currentSpeaker !== '旁白' && currentSpeaker !== '系统') {
-      sceneCharacters = [{ name: currentSpeaker, position: 'center' }];
     } else {
       const existing = Object.values(characterMap);
-      if (existing.length > 0) {
+      if (existing.length === 1) {
+        sceneCharacters = [{ name: existing[0].name, position: 'center' }];
+      } else if (existing.length >= 2) {
+        // 双人立绘同台模式：说话人在左或右，另一人在对应侧，形成生动的对话互动氛围
         sceneCharacters = existing.slice(0, 2).map((c, i) => ({
           name: c.name,
-          position: i === 0 ? 'center' : 'right'
+          position: i === 0 ? 'left' : 'right'
         }));
+      } else if (currentSpeaker && currentSpeaker !== '旁白' && currentSpeaker !== '系统') {
+        sceneCharacters = [{ name: currentSpeaker, position: 'center' }];
       }
     }
 
@@ -1704,9 +1707,9 @@ class GameEngine {
     }
 
     const posMap = {
-      left: '25%',
+      left: '32%',
       center: '50%',
-      right: '75%'
+      right: '68%'
     };
 
     sceneCharacters.forEach((sc, index) => {
