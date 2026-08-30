@@ -614,64 +614,42 @@ body.mode-game .hero { box-shadow: 0 16px 40px rgba(0,0,0,0.35); }
 
 .character-sprite-wrapper {
   position: absolute;
-  bottom: 50px;
-  height: 76%;
-  max-height: 82vh;
+  bottom: 0;
+  height: 84%;
+  max-height: 90vh;
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
               filter 0.35s ease,
               opacity 0.35s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   transform-origin: bottom center;
 }
 
 .character-sprite-wrapper img {
   height: 100%;
   width: auto;
-  max-width: 560px;
+  max-width: 620px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
-  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.65));
 }
 
-/* 当前对话说话的角色：生动明亮、微光高亮放大显示 */
+/* 当前发言角色：自然凸显、深亮聚焦 */
 .character-sprite-wrapper.speaking {
-  transform: translateX(-50%) scale(1.06) translateY(-8px) !important;
-  filter: brightness(112%) contrast(108%) drop-shadow(0 0 24px rgba(255, 154, 203, 0.45)) drop-shadow(0 16px 36px rgba(0, 0, 0, 0.65)) !important;
+  transform: translateX(-50%) scale(1.02) !important;
+  filter: brightness(108%) contrast(106%) drop-shadow(0 14px 36px rgba(0, 0, 0, 0.75)) !important;
   opacity: 1;
   z-index: 10;
 }
 
-/* 未说话的其他在场角色：清晰自然，不再过暗 */
+/* 未发言/旁听角色：沉底稍暗，退居次要 */
 .character-sprite-wrapper.inactive {
-  transform: translateX(-50%) scale(0.96) !important;
-  filter: brightness(88%) contrast(98%) drop-shadow(0 8px 20px rgba(0, 0, 0, 0.5)) !important;
-  opacity: 0.85;
+  transform: translateX(-50%) scale(0.95) !important;
+  filter: brightness(72%) contrast(92%) drop-shadow(0 8px 22px rgba(0, 0, 0, 0.5)) !important;
+  opacity: 0.72;
   z-index: 5;
-}
-
-/* 角色头顶飘浮名称卡 */
-.character-sprite-name {
-  position: absolute;
-  top: -34px;
-  background: linear-gradient(135deg, rgba(20, 24, 42, 0.9), rgba(10, 12, 22, 0.94));
-  color: #ffffff;
-  padding: 5px 16px;
-  border-radius: 16px;
-  font-size: 13.5px;
-  font-weight: 700;
-  border: 1.5px solid var(--primary-color, #ff69b4);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 105, 180, 0.35);
-  white-space: nowrap;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.character-sprite-wrapper.speaking .character-sprite-name {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .game-controls {

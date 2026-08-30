@@ -1697,11 +1697,6 @@ class GameEngine {
       spriteWrapper.dataset.emotion = emotion;
       spriteWrapper.style.left = leftCss;
 
-      const nameTag = document.createElement('div');
-      nameTag.className = 'character-sprite-name';
-      nameTag.textContent = name;
-      spriteWrapper.appendChild(nameTag);
-
       const img = document.createElement('img');
       img.src = spriteUrl;
       img.alt = name;
