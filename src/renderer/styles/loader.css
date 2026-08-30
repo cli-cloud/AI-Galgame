@@ -1,0 +1,173 @@
+/* Sci-fi neon loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 30px; /* 精确避免遮挡标题栏，减少空隙 */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(1200px 800px at 50% 50%, rgba(8,12,24,0.75), rgba(2,6,23,0.85)),
+              linear-gradient(135deg, rgba(59,130,246,0.05), rgba(16,185,129,0.05));
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: none;
+}
+.loading-overlay.active { display: block; }
+
+.loading-core {
+  position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 220px; height: 220px;
+  display: grid; place-items: center;
+}
+
+.core-geo {
+  width: 140px; height: 140px; border-radius: 24px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(16,185,129,0.25));
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 0 32px rgba(99,102,241,0.25), 0 0 48px rgba(16,185,129,0.2) inset;
+  transform-style: preserve-3d;
+  animation: core-rotate 9s linear infinite;
+}
+
+.ring {
+  position: absolute; border: 1px dashed rgba(148,163,184,0.3);
+  border-radius: 50%; filter: drop-shadow(0 0 10px rgba(59,130,246,0.25));
+}
+.ring.r1 { width: 180px; height: 180px; animation: ring-rotate 8s linear infinite; }
+.ring.r2 { width: 200px; height: 200px; animation: ring-rotate 12s linear infinite reverse; }
+
+.fa-float {
+  position: absolute; font-size: 18px; opacity: 0.9; color: #7dd3fc;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.7), 0 0 24px rgba(59,130,246,0.55);
+  filter: drop-shadow(0 0 10px rgba(34,211,238,0.35));
+  animation: float-path var(--dur, 10s) cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+.fa-float.neon-purple { color: #c084fc; text-shadow: 0 0 12px rgba(168,85,247,0.8), 0 0 24px rgba(168,85,247,0.5); }
+.fa-float.neon-green { color: #34d399; text-shadow: 0 0 12px rgba(52,211,153,0.8), 0 0 24px rgba(16,185,129,0.5); }
+
+.progress { 
+  position: absolute; 
+  bottom: 18px; 
+  right: 24px; 
+  color: #9ca3af; 
+  font-size: 12px; 
+  display: flex; 
+  flex-direction: column;
+  align-items: flex-end; 
+  gap: 6px; 
+}
+
+.stage-info {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #e5e7eb;
+  font-size: 16px;
+  font-weight: 500;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.stage-info .stage {
+  color: #93c5fd;
+  font-weight: 600;
+  font-size: 18px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.stage-info .percentage {
+  color: #e5e7eb;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.timeout-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.elapsed-time {
+  color: #9ca3af;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.retry-btn {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.9));
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.retry-btn:hover {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.9), rgba(239, 68, 68, 1));
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
+.retry-btn.hidden {
+  display: none;
+}
+
+.retry-btn.timeout-warning {
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { 
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.6);
+    transform: scale(1.02);
+  }
+}
+
+.nebula {
+  position: absolute; inset: -20%; background:
+    radial-gradient(800px 400px at 80% 20%, rgba(56,189,248,0.05), transparent),
+    radial-gradient(600px 300px at 20% 80%, rgba(168,85,247,0.06), transparent),
+    radial-gradient(500px 500px at 50% 50%, rgba(0,0,0,0.4), transparent);
+  animation: nebula-shift 30s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes core-rotate {
+  0% { transform: rotateX(18deg) rotateY(12deg) rotateZ(0deg); }
+  100% { transform: rotateX(18deg) rotateY(12deg) rotateZ(360deg); }
+}
+@keyframes ring-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes nebula-shift { from { transform: translateY(-2%) translateX(2%);} to { transform: translateY(2%) translateX(-2%);} }
+
+/* 路径动画使用 CSS variables 进行偏移变化，JS 会随机初始化 */
+@keyframes float-path {
+  0%   { transform: translate(var(--x0), var(--y0)) scale(var(--s0,1)) rotate(var(--r0,0deg)); opacity: 0; }
+  10%  { opacity: 0.9; }
+  50%  { transform: translate(var(--x1), var(--y1)) scale(var(--s1,1.1)) rotate(var(--r1,5deg)); opacity: 1; }
+  90%  { opacity: 0.9; }
+  100% { transform: translate(var(--x2), var(--y2)) scale(var(--s2,1)) rotate(var(--r2,-5deg)); opacity: 0; }
+}
+
+/* 轻薄科技网格线 */
+.gridlines {
+  position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(1000px 700px at 50% 50%, black, transparent);
+  pointer-events: none;
+}

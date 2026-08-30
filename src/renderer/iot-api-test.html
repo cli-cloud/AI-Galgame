@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT API 测试页面</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #667eea;
+      margin-top: 0;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-left: 3px solid #667eea;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .success {
+      border-left-color: #28a745;
+      background: #d4edda;
+    }
+    .error {
+      border-left-color: #dc3545;
+      background: #f8d7da;
+    }
+    .status {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status.ok {
+      background: #28a745;
+      color: white;
+    }
+    .status.fail {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 IoT API 集成测试</h1>
+  
+  <div class="test-section">
+    <h2>1. API 可用性检查</h2>
+    <button onclick="checkAPIs()">检查所有API</button>
+    <div id="api-check-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. 窗口管理测试</h2>
+    <button onclick="testOpenSRITest()">打开SRI测试窗口</button>
+    <button onclick="testOpenIoTPanel()">打开IoT面板</button>
+    <div id="window-test-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. 串口管理测试</h2>
+    <button onclick="testListSerialPorts()">列出可用串口</button>
+    <div id="serial-test-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. 存储测试</h2>
+    <button onclick="testStorage()">测试存储读写</button>
+    <div id="storage-test-result" class="result"></div>
+  </div>
+
+  <script>
+    function log(elementId, message, type = '') {
+      const el = document.getElementById(elementId);
+      el.textContent = message;
+      el.className = 'result ' + type;
+    }
+
+    async function checkAPIs() {
+      const results = [];
+      
+      // 检查window.electronAPI
+      if (typeof window.electronAPI !== 'undefined') {
+        results.push('✅ window.electronAPI 存在');
+      } else {
+        results.push('❌ window.electronAPI 不存在');
+        log('api-check-result', results.join('\n'), 'error');
+        return;
+      }
+
+      // 检查window对象
+      if (window.electronAPI.window) {
+        results.push('✅ window.electronAPI.window 存在');
+        if (typeof window.electronAPI.window.openSRITest === 'function') {
+          results.push('  ✅ openSRITest 方法存在');
+        } else {
+          results.push('  ❌ openSRITest 方法不存在');
+        }
+        if (typeof window.electronAPI.window.openIoTPanel === 'function') {
+          results.push('  ✅ openIoTPanel 方法存在');
+        } else {
+          results.push('  ❌ openIoTPanel 方法不存在');
+        }
+      } else {
+        results.push('❌ window.electronAPI.window 不存在');
+      }
+
+      // 检查iot对象
+      if (window.electronAPI.iot) {
+        results.push('✅ window.electronAPI.iot 存在');
+        if (typeof window.electronAPI.iot.connectSerial === 'function') {
+          results.push('  ✅ connectSerial 方法存在');
+        } else {
+          results.push('  ❌ connectSerial 方法不存在');
+        }
+        if (typeof window.electronAPI.iot.disconnectSerial === 'function') {
+          results.push('  ✅ disconnectSerial 方法存在');
+        } else {
+          results.push('  ❌ disconnectSerial 方法不存在');
+        }
+        if (typeof window.electronAPI.iot.listSerialPorts === 'function') {
+          results.push('  ✅ listSerialPorts 方法存在');
+        } else {
+          results.push('  ❌ listSerialPorts 方法不存在');
+        }
+        if (typeof window.electronAPI.iot.onSerialData === 'function') {
+          results.push('  ✅ onSerialData 方法存在');
+        } else {
+          results.push('  ❌ onSerialData 方法不存在');
+        }
+        if (typeof window.electronAPI.iot.onSerialError === 'function') {
+          results.push('  ✅ onSerialError 方法存在');
+        } else {
+          results.push('  ❌ onSerialError 方法不存在');
+        }
+      } else {
+        results.push('❌ window.electronAPI.iot 不存在');
+      }
+
+      // 检查ipc对象
+      if (window.electronAPI.ipc) {
+        results.push('✅ window.electronAPI.ipc 存在');
+        if (typeof window.electronAPI.ipc.invoke === 'function') {
+          results.push('  ✅ invoke 方法存在');
+        } else {
+          results.push('  ❌ invoke 方法不存在');
+        }
+      } else {
+        results.push('❌ window.electronAPI.ipc 不存在');
+      }
+
+      // 检查storage对象
+      if (window.electronAPI.storage) {
+        results.push('✅ window.electronAPI.storage 存在');
+      } else {
+        results.push('❌ window.electronAPI.storage 不存在');
+      }
+
+      const hasErrors = results.some(r => r.includes('❌'));
+      log('api-check-result', results.join('\n'), hasErrors ? 'error' : 'success');
+    }
+
+    async function testOpenSRITest() {
+      try {
+        log('window-test-result', '正在打开SRI测试窗口...', '');
+        const result = await window.electronAPI.window.openSRITest();
+        log('window-test-result', 
+          `SRI测试窗口打开成功！\n结果: ${JSON.stringify(result, null, 2)}`, 
+          'success');
+      } catch (error) {
+        log('window-test-result', 
+          `打开SRI测试窗口失败: ${error.message}`, 
+          'error');
+      }
+    }
+
+    async function testOpenIoTPanel() {
+      try {
+        log('window-test-result', '正在打开IoT面板...', '');
+        const result = await window.electronAPI.window.openIoTPanel();
+        log('window-test-result', 
+          `IoT面板打开成功！\n结果: ${JSON.stringify(result, null, 2)}`, 
+          'success');
+      } catch (error) {
+        log('window-test-result', 
+          `打开IoT面板失败: ${error.message}`, 
+          'error');
+      }
+    }
+
+    async function testListSerialPorts() {
+      try {
+        log('serial-test-result', '正在列出串口...', '');
+        const ports = await window.electronAPI.iot.listSerialPorts();
+        
+        if (ports.length === 0) {
+          log('serial-test-result', 
+            '未找到可用串口。\n请连接USB串口设备后重试。', 
+            'error');
+        } else {
+          const portInfo = ports.map((p, i) => 
+            `端口 ${i + 1}:\n  路径: ${p.path}\n  制造商: ${p.manufacturer || '未知'}\n  序列号: ${p.serialNumber || '无'}`
+          ).join('\n\n');
+          log('serial-test-result', 
+            `找到 ${ports.length} 个串口:\n\n${portInfo}`, 
+            'success');
+        }
+      } catch (error) {
+        log('serial-test-result', 
+          `列出串口失败: ${error.message}`, 
+          'error');
+      }
+    }
+
+    async function testStorage() {
+      try {
+        log('storage-test-result', '正在测试存储...', '');
+        
+        // 写入测试数据
+        const testData = {
+          test: true,
+          timestamp: Date.now(),
+          message: 'IoT API 测试数据'
+        };
+        
+        await window.electronAPI.storage.set('iotApiTest', testData);
+        log('storage-test-result', '✅ 写入测试数据成功', 'success');
+        
+        // 读取测试数据
+        const readData = await window.electronAPI.storage.get('iotApiTest');
+        
+        if (JSON.stringify(readData) === JSON.stringify(testData)) {
+          log('storage-test-result', 
+            `✅ 存储测试成功！\n写入数据: ${JSON.stringify(testData, null, 2)}\n读取数据: ${JSON.stringify(readData, null, 2)}`, 
+            'success');
+        } else {
+          log('storage-test-result', 
+            `❌ 数据不一致\n写入: ${JSON.stringify(testData, null, 2)}\n读取: ${JSON.stringify(readData, null, 2)}`, 
+            'error');
+        }
+      } catch (error) {
+        log('storage-test-result', 
+          `存储测试失败: ${error.message}`, 
+          'error');
+      }
+    }
+
+    // 页面加载时自动检查API
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(checkAPIs, 500);
+    });
+  </script>
+</body>
+</html>

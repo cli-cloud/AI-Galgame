@@ -1,0 +1,708 @@
+/* ==========================================================================
+   ArtiMeow AI GalGamer RT - 特效和动画样式
+   ========================================================================== */
+
+/* 全局加载遮罩 */
+.global-overlay {
+    position: fixed;
+    top: var(--titlebar-height); /* 默认留出标题栏高度 */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at center, 
+        rgba(0, 212, 255, 0.1) 0%, 
+        rgba(10, 10, 15, 0.95) 70%);
+    backdrop-filter: var(--glass-strong-blur);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* 全屏模式下覆盖整个屏幕 */
+.fullscreen-mode .global-overlay {
+    top: 0;
+}
+
+.global-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.global-overlay.mode-text {
+    background: radial-gradient(ellipse at center, 
+        rgba(0, 212, 255, 0.15) 0%, 
+        rgba(10, 10, 15, 0.9) 70%);
+}
+
+.global-overlay.mode-image {
+    background: radial-gradient(ellipse at center, 
+        rgba(255, 0, 110, 0.15) 0%, 
+        rgba(26, 26, 46, 0.95) 70%);
+}
+
+.loading-content {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+/* 图标云效果 */
+.icon-cloud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.icon-cloud i {
+    position: absolute;
+    font-size: 4rem;
+    color: var(--primary-neon);
+    opacity: 0.6;
+    transform: rotate(45deg);
+    animation: iconFloat 12s linear infinite;
+    text-shadow: 0 0 20px currentColor;
+}
+
+/* 生成8个图标的随机位置和延迟 */
+.icon-cloud i:nth-child(1) {
+    top: 10%;
+    left: 15%;
+    animation-delay: 0s;
+    font-size: 3.5rem;
+    color: var(--primary-neon);
+}
+
+.icon-cloud i:nth-child(2) {
+    top: 20%;
+    right: 20%;
+    animation-delay: 1.5s;
+    font-size: 4.5rem;
+    color: var(--secondary-neon);
+}
+
+.icon-cloud i:nth-child(3) {
+    top: 60%;
+    left: 10%;
+    animation-delay: 3s;
+    font-size: 5rem;
+    color: var(--accent-neon);
+}
+
+.icon-cloud i:nth-child(4) {
+    bottom: 30%;
+    right: 15%;
+    animation-delay: 4.5s;
+    font-size: 3.8rem;
+    color: var(--success-neon);
+}
+
+.icon-cloud i:nth-child(5) {
+    top: 40%;
+    left: 50%;
+    animation-delay: 6s;
+    font-size: 4.2rem;
+    color: var(--primary-neon);
+}
+
+.icon-cloud i:nth-child(6) {
+    bottom: 15%;
+    left: 30%;
+    animation-delay: 7.5s;
+    font-size: 4.8rem;
+    color: var(--secondary-neon);
+}
+
+.icon-cloud i:nth-child(7) {
+    top: 25%;
+    left: 70%;
+    animation-delay: 9s;
+    font-size: 4rem;
+    color: var(--accent-neon);
+}
+
+.icon-cloud i:nth-child(8) {
+    bottom: 40%;
+    right: 45%;
+    animation-delay: 10.5s;
+    font-size: 4.6rem;
+    color: var(--success-neon);
+}
+
+@keyframes iconFloat {
+    0% {
+        transform: translateY(100vh) rotate(45deg) scale(0.5);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.6;
+        transform: translateY(90vh) rotate(45deg) scale(1);
+    }
+    90% {
+        opacity: 0.6;
+        transform: translateY(-10vh) rotate(45deg) scale(1);
+    }
+    100% {
+        transform: translateY(-20vh) rotate(45deg) scale(0.5);
+        opacity: 0;
+    }
+}
+
+.loading-text {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    text-shadow: 0 0 20px var(--primary-neon);
+    animation: textPulse 2s ease-in-out infinite;
+}
+
+.loading-stage {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    min-height: 1.5rem;
+}
+
+@keyframes textPulse {
+    0%, 100% {
+        text-shadow: 0 0 20px var(--primary-neon);
+        opacity: 1;
+    }
+    50% {
+        text-shadow: 0 0 30px var(--primary-neon), 0 0 40px var(--primary-neon);
+        opacity: 0.9;
+    }
+}
+
+/* 通知系统 */
+.notifications-container {
+    position: fixed;
+    top: calc(var(--titlebar-height) + 20px);
+    right: 20px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+}
+
+/* 全屏模式下的通知系统修正 */
+.fullscreen-mode .notifications-container {
+    top: 20px;
+}
+
+.notification {
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-strong-blur);
+    border: var(--border-glass);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow-glass);
+    transform: translateX(100%);
+    opacity: 0;
+    animation: notificationSlideIn var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+    position: relative;
+    overflow: hidden;
+}
+
+.notification::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--primary-neon);
+    border-radius: 0 2px 2px 0;
+}
+
+.notification.success::before {
+    background: var(--success-neon);
+}
+
+.notification.warning::before {
+    background: var(--warning-neon);
+}
+
+.notification.error::before {
+    background: var(--secondary-neon);
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.notification-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: color var(--anim-fast) ease;
+}
+
+.notification-close:hover {
+    color: var(--text-primary);
+}
+
+.notification-message {
+    color: var(--text-secondary);
+    line-height: 1.4;
+    font-size: 0.9rem;
+}
+
+@keyframes notificationSlideIn {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification.removing {
+    animation: notificationSlideOut var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes notificationSlideOut {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 上下文菜单 */
+.context-menu {
+    position: fixed;
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-strong-blur);
+    border: var(--border-glass);
+    border-radius: 8px;
+    box-shadow: var(--shadow-glass);
+    z-index: 10001;
+    min-width: 200px;
+    overflow: hidden;
+    transform: scale(0.9);
+    opacity: 0;
+    transition: all var(--anim-fast) cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.context-menu.active {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--anim-fast) ease;
+    font-size: 0.9rem;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.context-menu-item:hover {
+    background: var(--bg-glass-strong);
+    color: var(--primary-neon);
+}
+
+.context-menu-item i {
+    color: var(--text-muted);
+    width: 16px;
+    text-align: center;
+}
+
+.context-menu-item:hover i {
+    color: var(--primary-neon);
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--border-glass);
+    margin: 4px 0;
+}
+
+/* 模态框效果 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: var(--bg-glass-strong);
+    backdrop-filter: var(--glass-strong-blur);
+    border: var(--border-glass);
+    border-radius: 16px;
+    box-shadow: var(--shadow-glass);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+}
+
+.modal-overlay.active .modal {
+    transform: scale(1);
+}
+
+.modal-header {
+    padding: 24px 24px 16px 24px;
+    border-bottom: var(--border-glass);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--anim-fast) ease;
+    font-size: 1rem;
+}
+
+.modal-close:hover {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff4444;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 16px 24px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: var(--border-glass);
+}
+
+/* 表单样式 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.form-group .input,
+.form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-glass);
+    border: var(--border-glass);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all var(--anim-normal) ease;
+    backdrop-filter: var(--glass-blur);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-group .input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-neon);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+    background: var(--bg-glass-strong);
+}
+
+.form-group .input::placeholder {
+    color: var(--text-muted);
+}
+
+/* 打字机效果 */
+.typewriter {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typing 2s steps(40, end);
+    border-right: 2px solid var(--primary-neon);
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+
+.typewriter.cursor-blink {
+    animation: typing 2s steps(40, end), blink-cursor 0.5s step-end infinite 2s;
+}
+
+@keyframes blink-cursor {
+    0%, 50% { border-color: var(--primary-neon); }
+    51%, 100% { border-color: transparent; }
+}
+
+/* 悬停粒子效果 */
+@keyframes particleFloat {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) rotate(180deg);
+        opacity: 0;
+    }
+}
+
+.particle-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--primary-neon);
+    border-radius: 50%;
+    animation: particleFloat 3s linear infinite;
+    box-shadow: 0 0 10px var(--primary-neon);
+}
+
+/* 扫描线效果 */
+@keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+.scanline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        var(--primary-neon) 50%, 
+        transparent 100%);
+    z-index: 10001;
+    animation: scanline 3s linear infinite;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* 全息网格背景 */
+.holographic-grid {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -1;
+    animation: gridShift 20s linear infinite;
+}
+
+@keyframes gridShift {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+/* 加载条效果 */
+.loading-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 16px 0;
+}
+
+.loading-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-neon), var(--secondary-neon));
+    border-radius: 2px;
+    transition: width var(--anim-normal) ease;
+    position: relative;
+    box-shadow: 0 0 10px var(--primary-neon);
+}
+
+.loading-bar-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.4) 50%, 
+        transparent 100%);
+    animation: loadingShine 2s infinite;
+}
+
+@keyframes loadingShine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* 故障效果 */
+@keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    100% { transform: translate(0); }
+}
+
+.glitch {
+    animation: glitch 0.3s ease-in-out;
+}
+
+/* 渐显效果 */
+.fade-in {
+    opacity: 0;
+    animation: fadeIn var(--anim-normal) ease-out forwards;
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
+.fade-out {
+    animation: fadeOut var(--anim-normal) ease-out forwards;
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; }
+}
+
+/* 滑入效果 */
+.slide-in-left {
+    transform: translateX(-100%);
+    animation: slideInLeft var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes slideInLeft {
+    to { transform: translateX(0); }
+}
+
+.slide-in-right {
+    transform: translateX(100%);
+    animation: slideInRight var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes slideInRight {
+    to { transform: translateX(0); }
+}
+
+.slide-in-up {
+    transform: translateY(100%);
+    animation: slideInUp var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes slideInUp {
+    to { transform: translateY(0); }
+}
+
+/* 缩放动画 */
+.scale-in {
+    transform: scale(0);
+    animation: scaleIn var(--anim-normal) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes scaleIn {
+    to { transform: scale(1); }
+}
+
+/* 弹性动画 */
+.bounce-in {
+    transform: scale(0);
+    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+@keyframes bounceIn {
+    to { transform: scale(1); }
+}

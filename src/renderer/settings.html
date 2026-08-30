@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - ArtiMeow AI GalGamer RT</title>
+    <!-- Font Awesome (local, will be downloaded by agent) -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/settings.css">
+    <link rel="stylesheet" href="styles/loader.css">
+</head>
+<body>
+    <div id="settings-app">
+        <div class="settings-container">
+            <div class="settings-sidebar">
+                <h2>设置</h2>
+                <ul class="settings-nav">
+                    <li><a href="#ai-config" class="nav-link active" data-tab="ai-config">AI配置</a></li>
+                    <li><a href="#display-config" class="nav-link" data-tab="display-config">显示设置</a></li>
+                    <li><a href="#general-config" class="nav-link" data-tab="general-config">通用设置</a></li>
+                    <li><a href="#about-config" class="nav-link" data-tab="about-config">关于</a></li>
+                </ul>
+            </div>
+            
+            <div class="settings-content">
+                <!-- AI配置面板 -->
+                <div id="ai-config" class="settings-panel active">
+                    <h3>AI配置</h3>
+                    
+                    <div class="config-section">
+                        <h4>文本生成模型</h4>
+                        <div class="form-group">
+                            <label for="text-model-type">API类型</label>
+                            <select id="text-model-type">
+                                <option value="openai">OpenAI</option>
+                                <option value="claude">Claude (Anthropic)</option>
+                                <option value="gemini">Google Gemini</option>
+                                <option value="ollama">Ollama</option>
+                                <option value="llamacpp">llama.cpp</option>
+                                <option value="custom">自定义兼容API</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="text-api-url">API URL</label>
+                            <input type="url" id="text-api-url" placeholder="https://api.openai.com/v1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="text-api-key">API Key</label>
+                            <input type="password" id="text-api-key" placeholder="输入你的API密钥">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="text-model">模型名称</label>
+                            <input type="text" id="text-model" placeholder="gpt-4o-mini">
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h4>图像生成模型</h4>
+                        <div class="form-group">
+                            <label for="image-model-type">API类型</label>
+                            <select id="image-model-type">
+                                <option value="openai">OpenAI DALL-E</option>
+                                <option value="custom">自定义兼容API</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image-api-url">API URL</label>
+                            <input type="url" id="image-api-url" placeholder="https://api.openai.com/v1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image-api-key">API Key</label>
+                            <input type="password" id="image-api-key" placeholder="输入你的API密钥">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image-model">模型名称</label>
+                            <input type="text" id="image-model" placeholder="dall-e-3">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image-resolution">图像分辨率</label>
+                            <select id="image-resolution">
+                                <option value="auto">自动（当前窗口分辨率）</option>
+                                <option value="1024x1024">1024x1024</option>
+                                <option value="1792x1024">1792x1024</option>
+                                <option value="1024x1792">1024x1792</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button id="test-text-api" class="btn btn-secondary">测试文本API</button>
+                        <button id="test-image-api" class="btn btn-secondary">测试图像API</button>
+                    </div>
+                </div>
+                
+                <!-- 显示设置面板 -->
+                <div id="display-config" class="settings-panel">
+                    <h3>显示设置</h3>
+                    
+                    <div class="config-section">
+                        <h4>窗口设置</h4>
+                        <div class="form-group">
+                            <label for="window-resolution">窗口分辨率</label>
+                            <select id="window-resolution">
+                                <option value="1280x720">1280 x 720 (默认)</option>
+                                <option value="1920x1080">1920 x 1080</option>
+                                <option value="2560x1440">2560 x 1440</option>
+                                <option value="3840x2160">3840 x 2160</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
+                        
+                        <div id="custom-resolution" class="form-group hidden">
+                            <div class="input-row">
+                                <input type="number" id="custom-width" placeholder="宽度" min="800">
+                                <span><i class="fa fa-xmark" aria-hidden="true"></i></span>
+                                <input type="number" id="custom-height" placeholder="高度" min="600">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="fullscreen-mode">
+                                <span class="checkmark"></span>
+                                全屏模式
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h4>主题设置</h4>
+                        <div class="form-group">
+                            <label for="theme-mode">主题模式</label>
+                            <select id="theme-mode">
+                                <option value="system">跟随系统</option>
+                                <option value="dark">深色模式</option>
+                                <option value="light">浅色模式</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="theme-color">主题色彩</label>
+                            <div class="color-palette">
+                                <div class="color-option" data-color="purple" style="background: linear-gradient(135deg, #667eea, #764ba2)" title="紫色渐变(默认)"></div>
+                                <div class="color-option" data-color="blue" style="background: linear-gradient(135deg, #4facfe, #00f2fe)" title="蓝色渐变"></div>
+                                <div class="color-option" data-color="green" style="background: linear-gradient(135deg, #43e97b, #38f9d7)" title="绿色渐变"></div>
+                                <div class="color-option" data-color="orange" style="background: linear-gradient(135deg, #fa709a, #fee140)" title="橙色渐变"></div>
+                                <div class="color-option" data-color="pink" style="background: linear-gradient(135deg, #a8edea, #fed6e3)" title="粉色渐变"></div>
+                                <div class="color-option" data-color="red" style="background: linear-gradient(135deg, #ff9a9e, #fecfef)" title="红色渐变"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>背景渐变设置</label>
+                            <div class="background-gradient-section">
+                                <div class="gradient-preview" id="gradient-preview"></div>
+                                <div class="gradient-controls">
+                                    <div class="color-picker-group">
+                                        <label>起始颜色</label>
+                                        <input type="color" id="gradient-start" value="#fce1ec">
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>结束颜色</label>
+                                        <input type="color" id="gradient-end" value="#f7b1c3">
+                                    </div>
+                                    <div class="gradient-direction">
+                                        <label>方向</label>
+                                        <select id="gradient-direction">
+                                            <option value="135deg">右下角</option>
+                                            <option value="45deg">右上角</option>
+                                            <option value="90deg">向下</option>
+                                            <option value="180deg">向左</option>
+                                            <option value="270deg">向上</option>
+                                            <option value="0deg">向右</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="gradient-presets">
+                                    <span class="preset-label">快捷选项：</span>
+                                    <button class="gradient-preset" data-start="#fce1ec" data-end="#f7b1c3" type="button">柔雾粉</button>
+                                    <button class="gradient-preset" data-start="#667eea" data-end="#764ba2" type="button">默认紫色</button>
+                                    <button class="gradient-preset" data-start="#4facfe" data-end="#00f2fe" type="button">蓝色</button>
+                                    <button class="gradient-preset" data-start="#43e97b" data-end="#38f9d7" type="button">绿色</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!--
+                                        <div class="config-section">
+                                            <h4>主页背景</h4>
+                                            <div class="form-group">
+                                                <label class="checkbox-label">
+                                                    <input type="checkbox" id="homepage-bg-enabled">
+                                                    <span class="checkmark"></span>
+                                                    启用主页背景
+                                                </label>
+                                            </div>
+                                            
+                                            <div id="homepage-bg-settings" class="hidden">
+                                                <div class="form-group">
+                                                    <label for="homepage-bg-opacity">背景透明度</label>
+                                                    <div class="slider-group">
+                                                        <input type="range" id="homepage-bg-opacity" min="0" max="100" value="80" step="5">
+                                                        <span id="homepage-bg-opacity-value">80%</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="form-group">
+                                                    <label for="homepage-bg-blur">模糊程度</label>
+                                                    <div class="slider-group">
+                                                        <input type="range" id="homepage-bg-blur" min="0" max="20" value="0" step="1">
+                                                        <span id="homepage-bg-blur-value">0px</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="form-group">
+                                                    <label for="homepage-bg-prompt">AI生成描述</label>
+                                                    <div class="input-with-button">
+                                                        <textarea id="homepage-bg-prompt" rows="2" placeholder="描述你想要的背景，例如：梦幻的星空、温暖的咖啡厅、现代都市夜景等..."></textarea>
+                                                        <button id="generate-homepage-bg" class="btn btn-primary" type="button">
+                                                            <i class="fas fa-magic"></i>
+                                                            AI生成
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="form-group">
+                                                    <label>或从文件选择</label>
+                                                    <div class="file-upload-area">
+                                                        <button id="upload-homepage-bg" class="btn btn-secondary" type="button">
+                                                            <i class="fas fa-upload"></i>
+                                                            选择图片文件
+                                                        </button>
+                                                        <span class="file-info">支持 JPG、PNG 格式</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="form-group">
+                                                    <button id="remove-homepage-bg" class="btn btn-outline" type="button">
+                                                        <i class="fas fa-trash"></i>
+                                                        移除背景
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                    -->
+                    
+                    <div class="config-section">
+                        <h4>游戏界面</h4>
+                                            <div class="form-group">
+                                                <label for="ui-mode">界面风格</label>
+                                                <select id="ui-mode" disabled>
+                                                    <option value="game" selected>游戏风（已强制）</option>
+                                                </select>
+                                                <div class="help-text">已强制启用“游戏风”，增强霓虹与玻璃拟态效果。</div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="dialogue-skin">对话皮肤</label>
+                                                <select id="dialogue-skin">
+                                                    <option value="default">默认</option>
+                                                    <option value="paper">拟物纸张</option>
+                                                    <option value="neon">霓虹边框</option>
+                                                    <option value="cyber">赛博面板</option>
+                                                </select>
+                                                <div class="help-text">保存后将以 body 上的类名切换：skin-paper / skin-neon / skin-cyber</div>
+                                            </div>
+                        <div class="form-group">
+                            <label for="text-size">文字大小</label>
+                            <select id="text-size">
+                                <option value="small">小</option>
+                                <option value="medium" selected>中</option>
+                                <option value="large">大</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="text-opacity">文本区域透明度</label>
+                            <input type="range" id="text-opacity" min="50" max="95" value="85">
+                            <span id="opacity-value">85%</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="smooth-animations">
+                                <span class="checkmark"></span>
+                                启用平滑动画
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 通用设置面板 -->
+                <div id="general-config" class="settings-panel">
+                    <h3>通用设置</h3>
+                    
+                    <div class="config-section">
+                        <h4>数据管理</h4>
+                        <div class="form-group">
+                            <label>数据存储位置</label>
+                            <div class="input-with-button">
+                                <input type="text" id="data-location" readonly>
+                                <button id="change-data-location" class="btn btn-secondary">更改</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button id="backup-data" class="btn btn-secondary">备份数据</button>
+                            <button id="restore-data" class="btn btn-secondary">恢复数据</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 关于面板 -->
+                <div id="about-config" class="settings-panel">
+                    <h3>关于</h3>
+                    
+                    <div class="config-section">
+                        <div class="about-app">
+                            <div class="app-icon"><i class="fa fa-book"></i></div>
+                            <div class="app-info">
+                                <h4>ArtiMeow AI GalGamer RT</h4>
+                                <p>一个实时AIGC的GalGame框架</p>
+                            </div>
+                        </div>
+                        
+                        <div class="version-info">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">应用版本</span>
+                                    <span class="info-value" id="settings-app-version">1.0.0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">执行路径</span>
+                                    <span class="info-value" id="settings-app-path">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Node.js版本</span>
+                                    <span class="info-value" id="settings-node-version">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Electron版本</span>
+                                    <span class="info-value" id="settings-electron-version">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Chrome版本</span>
+                                    <span class="info-value" id="settings-chrome-version">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="dependencies-info">
+                            <h5>核心依赖版本</h5>
+                            <div class="deps-grid">
+                                <div class="dep-item">
+                                    <span>axios</span>
+                                    <span id="dep-axios-version">获取中...</span>
+                                </div>
+                                <div class="dep-item">
+                                    <span>fs-extra</span>
+                                    <span id="dep-fs-extra-version">获取中...</span>
+                                </div>
+                                <div class="dep-item">
+                                    <span>yauzl</span>
+                                    <span id="dep-yauzl-version">获取中...</span>
+                                </div>
+                                <div class="dep-item">
+                                    <span>yazl</span>
+                                    <span id="dep-yazl-version">获取中...</span>
+                                </div>
+                                <div class="dep-item">
+                                    <span>electron</span>
+                                    <span id="dep-electron-version">获取中...</span>
+                                </div>
+                                <div class="dep-item">
+                                    <span>uuid</span>
+                                    <span id="dep-uuid-version">获取中...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="legal-info">
+                            <div class="info-item">
+                                <span class="info-label">作者</span>
+                                <span class="info-value">B5-Software</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">许可证</span>
+                                <span class="info-value">B5-Software FOKPL 1.0-Permissive</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">GitHub仓库</span>
+                                <span class="info-value">
+                                    <a href="#" onclick="openGitHubRepo()" class="github-link">ArtiMeow-AIGalGamerRT</a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-footer">
+            <button id="reset-settings" class="btn btn-outline">重置为默认</button>
+            <div class="footer-actions">
+                <button id="cancel-settings" class="btn btn-secondary">取消</button>
+                <button id="save-settings" class="btn btn-primary">保存设置</button>
+            </div>
+        </div>
+        
+        <!-- 测试结果模态框 -->
+        <div id="test-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="test-modal-title">API测试结果</h3>
+                    <button class="btn-close" onclick="closeTestModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div id="test-result" class="test-result"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="closeTestModal()">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 依赖顺序很重要：先加载 PathUtils，再加载 BackgroundManager，然后其余脚本 -->
+    <script src="js/path-utils.js"></script>
+    <script src="js/background-manager.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ai-service.js"></script>
+    <script src="js/loader.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

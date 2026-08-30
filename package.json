@@ -1,0 +1,71 @@
+{
+  "name": "artimeow-ai-galgamer-rt",
+  "version": "1.2.0",
+  "description": "ArtiMeow AI GalGamer RT - 一个实时AIGC的GalGame框架",
+  "main": "src/main.js",
+  "author": "B5-Software",
+  "license": "B5-Software Free and Open Knowledge Public License Version 1.0-Permissive",
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --publish=never"
+  },
+  "build": {
+    "appId": "com.b5software.artimeow-ai-galgamer-rt",
+    "productName": "ArtiMeow AI GalGamer RT",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "fs-extra": "^11.3.1",
+    "music-metadata": "^11.8.3",
+    "path": "^0.12.7",
+    "serialport": "^13.0.0",
+    "uuid": "^12.0.0",
+    "yauzl": "^3.2.0",
+    "yazl": "^3.3.1"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "allowScripts": {
+    "electron@38.4.0": true,
+    "@serialport/bindings-cpp@13.0.0": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

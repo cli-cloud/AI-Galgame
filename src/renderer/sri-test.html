@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRI性压抑指数测试</title>
+  <link rel="stylesheet" href="styles/sri-test.css">
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+</head>
+<body>
+  <!-- 窗口标题栏 -->
+  <div class="title-bar">
+    <div class="title-bar-title">
+      <i class="fas fa-clipboard-check"></i>
+      SRI性压抑指数测试
+    </div>
+    <div class="title-bar-controls">
+      <button class="title-bar-button" id="minimizeBtn" title="最小化">
+        <i class="fas fa-window-minimize"></i>
+      </button>
+      <button class="title-bar-button close" id="closeBtn" title="关闭">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+  
+  <div class="test-container">
+    <div class="test-header">
+      <h1>🎮 性压抑指数测试 (SRI)</h1>
+      <p class="subtitle">Sexual Repression Index Assessment</p>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p class="progress-text">
+        <span id="currentQuestion">1</span> / <span id="totalQuestions">30</span>
+      </p>
+    </div>
+
+    <div class="test-content" id="testContent">
+      <!-- 问题将动态加载 -->
+    </div>
+
+    <div class="test-result hidden" id="testResult">
+      <div class="result-card">
+        <h2>测试完成！</h2>
+        <div class="sri-score">
+          <div class="score-circle">
+            <svg width="200" height="200">
+              <circle cx="100" cy="100" r="90" fill="none" stroke="#e0e0e0" stroke-width="10"/>
+              <circle id="scoreCircle" cx="100" cy="100" r="90" fill="none" stroke="#667eea" stroke-width="10"
+                      stroke-dasharray="565.48" stroke-dashoffset="565.48" transform="rotate(-90 100 100)"/>
+            </svg>
+            <div class="score-text">
+              <div class="score-number" id="sriScore">0</div>
+              <div class="score-label">SRI指数</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="result-details">
+          <h3 id="resultLevel">中等压抑</h3>
+          <p id="resultDescription">描述文本</p>
+          
+          <div class="result-breakdown">
+            <div class="breakdown-item">
+              <span class="breakdown-label">情感压抑</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="emotionalBar"></div>
+              </div>
+              <span class="breakdown-value" id="emotionalValue">0</span>
+            </div>
+            
+            <div class="breakdown-item">
+              <span class="breakdown-label">身体压抑</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="physicalBar"></div>
+              </div>
+              <span class="breakdown-value" id="physicalValue">0</span>
+            </div>
+            
+            <div class="breakdown-item">
+              <span class="breakdown-label">社会压抑</span>
+              <div class="breakdown-bar">
+                <div class="breakdown-fill" id="socialBar"></div>
+              </div>
+              <span class="breakdown-value" id="socialValue">0</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="result-actions">
+          <button class="btn btn-primary" onclick="saveAndClose()">
+            <i class="fa fa-check"></i> 保存结果
+          </button>
+          <button class="btn btn-secondary" onclick="retakeTest()">
+            <i class="fa fa-rotate-right"></i> 重新测试
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/sri-test.js"></script>
+  <script>
+    // 窗口控制
+    document.getElementById('minimizeBtn')?.addEventListener('click', () => {
+      window.electronAPI?.window?.minimize();
+    });
+    
+    document.getElementById('closeBtn')?.addEventListener('click', () => {
+      window.close();
+    });
+  </script>
+</body>
+</html>
+

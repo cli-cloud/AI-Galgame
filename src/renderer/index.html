@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtiMeow AI GalGamer RT</title>
+    <!-- Font Awesome & Styles -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/loader.css">
+</head>
+<body>
+    <!-- 自定义标题栏 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-region">
+            <div class="titlebar-title">ArtiMeow AI GalGamer RT</div>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-button minimize-btn" id="minimize-btn" title="最小化">
+                <i class="fa fa-window-minimize"></i>
+            </button>
+            <button class="titlebar-button maximize-btn" id="maximize-btn" title="最大化/还原">
+                <i class="fa fa-window-maximize"></i>
+            </button>
+            <button class="titlebar-button close-btn" id="close-btn" title="关闭">
+                <i class="fa fa-window-close"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div id="app">
+        <!-- 主界面 -->
+        <div id="main-screen" class="screen active">
+            <!-- 图标雨背景 -->
+            <div id="icon-rain-container" class="icon-rain-container"></div>
+            
+            <div class="header">
+                <div class="logo">
+                    <h1>ArtiMeow AI GalGamer RT</h1>
+                    <p class="subtitle">实时AIGC的GalGame框架</p>
+                </div>
+                <div class="header-buttons">
+                    <button id="main-heart-rate-display" class="btn btn-secondary hr-display-header" title="实时心率" style="display: none;">
+                        <i class="fa fa-heartbeat"></i>
+                        <span id="main-hr-value">--</span>
+                        <span class="hr-unit">BPM</span>
+                    </button>
+                    <button id="main-iot-panel-btn-header" class="btn btn-secondary" title="IoT设备面板">
+                        <i class="fa fa-heart-pulse"></i>
+                        IoT面板
+                    </button>
+                    <button id="settings-btn" class="btn btn-secondary">
+                        <i class="fa fa-gear"></i>
+                        设置
+                    </button>
+                </div>
+            </div>
+            <div class="main-content">
+                <div class="projects-section">
+                    <div class="section-header">
+                        <h2>我的项目</h2>
+                        <div class="section-actions">
+                          <div class="search-box">
+                            <i class="fa fa-search"></i>
+                            <input id="project-search" type="text" placeholder="搜索项目、简介或大纲..." />
+                          </div>
+                          <div class="section-buttons">
+                              <button id="new-project-btn" class="btn btn-primary">
+                                  <i class="fa fa-plus"></i>
+                                  新建项目
+                              </button>
+                              <button id="import-project-btn" class="btn btn-secondary">
+                                  <i class="fa fa-folder-open"></i>
+                                  导入项目
+                              </button>
+                          </div>
+                        </div>
+                    </div>
+                    
+                    <div id="projects-grid" class="projects-grid">
+                        <!-- 项目卡片将动态生成 -->
+                    </div>
+                    
+                    <div id="empty-state" class="empty-state">
+                        <div class="empty-icon"><i class="fa fa-book"></i></div>
+                        <h3>还没有项目</h3>
+                        <p>创建你的第一个AI GalGame项目吧！</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('new-project-btn').click()">
+                            开始创建
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部控制栏 -->
+            <div class="bottom-control-bar">
+                <div class="control-group">
+                    <button id="bottom-new-project-btn" class="control-btn" title="新建项目">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="control-group">
+                    <button id="bg-music-btn" class="control-btn" title="背景音乐">
+                        <i class="fas fa-music"></i>
+                    </button>
+                </div>
+                <div class="control-group">
+                    <button id="main-iot-panel-btn" class="control-btn" title="IoT设备面板">
+                        <i class="fas fa-heart-pulse"></i>
+                    </button>
+                </div>
+                <div class="control-group">
+                    <button id="bottom-settings-btn" class="control-btn" title="设置">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 心率曲线悬浮窗 -->
+            <div id="main-hr-chart-panel" class="hr-chart-panel" style="display: none;">
+                <div class="hr-chart-header">
+                    <h4><i class="fa fa-chart-line"></i> 心率曲线</h4>
+                    <button id="main-hr-chart-close" class="btn-close-small">×</button>
+                </div>
+                <canvas id="main-hr-chart" width="300" height="150"></canvas>
+                <div class="hr-chart-info">
+                    <span id="main-hr-emotion">--</span>
+                    <span id="main-hr-trend">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="screen">
+            <!-- 时间线面板 -->
+            <div id="timeline-panel" class="timeline-panel">
+                <div class="timeline-header">
+                    <h3>时间线</h3>
+                    <button id="timeline-close" class="btn-close" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div id="timeline-content" class="timeline-content">
+                    <!-- 时间线节点将动态生成 -->
+                </div>
+            </div>
+
+            <!-- 主游戏区域 -->
+            <div class="game-area">
+                <!-- 背景图片 -->
+                <div id="game-background" class="game-background"></div>
+                
+                <!-- 独立角色立绘图层 -->
+                <div id="character-layer" class="character-layer"></div>
+                
+                <!-- 顶部控制栏 -->
+                <div class="game-controls">
+                    <button id="timeline-btn" class="control-btn" title="时间线">
+                        <i class="fa fa-chart-bar"></i>
+                    </button>
+                    <button id="game-music-btn" class="control-btn" title="背景音乐">
+                        <i class="fa fa-music"></i>
+                    </button>
+                    <button id="back-to-main-btn" class="control-btn" title="返回主页">
+                        <i class="fa fa-house"></i>
+                    </button>
+                    <button id="game-settings-btn" class="control-btn" title="设置">
+                        <i class="fa fa-gear"></i>
+                    </button>
+                    <button id="game-iot-panel-btn" class="control-btn" title="IoT面板">
+                        <i class="fa fa-microchip"></i>
+                    </button>
+                    <button id="game-heart-rate-btn" class="control-btn hr-display" title="实时心率" style="display: none;">
+                        <i class="fa fa-heartbeat"></i>
+                        <span id="game-hr-value">--</span>
+                    </button>
+                </div>
+
+                <!-- 文本显示区域 -->
+                <div id="text-area" class="text-area">
+                    <div id="nameplate" class="nameplate hidden">角色名</div>
+                    <div id="dialogue-text" class="dialogue-text"></div>
+                    <div id="choices-container" class="choices-container hidden">
+                        <!-- 选择项将动态生成 -->
+                    </div>
+                    <div class="interaction-hint">
+                        <span id="space-hint">按空格继续</span>
+                        <span id="choice-hint" class="hidden">使用方向键或鼠标选择</span>
+                    </div>
+                                        <div class="hud-controls">
+                                                <button id="btn-custom" class="hud-btn" title="自定义输入"><i class="fa fa-keyboard"></i> CUSTOM</button>
+                                                <div id="custom-input" class="custom-input hidden">
+                                                    <input id="custom-text" type="text" placeholder="输入你的想法/选择..." maxlength="200" />
+                                                    <button id="custom-submit" class="btn btn-primary btn-sm"><i class="fa fa-paper-plane"></i></button>
+                                                </div>
+                                                <button id="btn-skip" class="hud-btn" title="快进"><i class="fa fa-forward"></i> SKIP</button>
+                                        </div>
+                </div>
+
+                <!-- 科幻霓虹加载覆盖层（由 Loader 控制显示/隐藏） -->
+                <div id="loading-overlay" class="loading-overlay"></div>
+                <div id="scene-transition" class="scene-transition hidden"></div>
+            </div>
+        </div>
+
+        <!-- 项目创建/编辑对话框 -->
+        <div id="project-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="project-modal-title">新建项目</h3>
+                    <button class="btn-close" onclick="closeProjectModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="project-form">
+                        <div class="form-group">
+                            <label for="project-name">项目名称</label>
+                            <input type="text" id="project-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-description">项目简介</label>
+                            <textarea id="project-description" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-style">项目风格</label>
+                            <textarea id="project-style" rows="2" placeholder="描述游戏的风格、氛围、角色特点等..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-summary">故事大纲</label>
+                            <textarea id="project-summary" rows="4" placeholder="简要描述故事背景、主要情节走向..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
+                    <button type="button" id="lucky-project-btn" class="btn btn-accent">
+                        <i class="fas fa-dice"></i> I'm Feeling Lucky
+                    </button>
+                    <button type="button" id="save-project-btn" class="btn btn-primary">创建</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 项目综合介绍对话框 -->
+        <div id="project-overview-modal" class="modal">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3 id="project-overview-title">项目综合介绍</h3>
+                    <button class="btn-close" onclick="closeProjectOverviewModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="overview-tabs">
+                        <button class="tab-btn active" data-tab="info"><i class="fa fa-info-circle"></i> 基础信息</button>
+                        <button class="tab-btn" data-tab="graph"><i class="fa fa-diagram-project"></i> 故事流图</button>
+                        <button class="tab-btn" data-tab="milestones"><i class="fa fa-flag"></i> 章节里程碑</button>
+                        <button class="tab-btn" data-tab="knowledge"><i class="fa fa-book"></i> 知识库预览</button>
+                    </div>
+                    
+                    <!-- 基础信息 -->
+                    <div id="overview-info" class="overview-content active">
+                        <!-- 项目封面和基本信息 -->
+                        <div class="project-info-section">
+                            <div class="project-cover-large" id="overview-cover"></div>
+                            <div class="project-basic-info">
+                                <h4 id="overview-name">项目名称</h4>
+                                <p id="overview-description">项目简介</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 项目详细信息 -->
+                        <div class="project-details-section">
+                            <div class="detail-group">
+                                <h5><i class="fa fa-calendar"></i> 时间信息</h5>
+                                <div class="detail-items">
+                                    <div class="detail-item">
+                                        <span class="label">创建时间：</span>
+                                        <span id="overview-created" class="value">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">最后修改：</span>
+                                        <span id="overview-modified" class="value">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <h5><i class="fa fa-palette"></i> 风格设定</h5>
+                                <div class="detail-content">
+                                    <div id="overview-style" class="style-content">未设置</div>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <h5><i class="fa fa-scroll"></i> 故事大纲</h5>
+                                <div class="detail-content">
+                                    <div id="overview-summary" class="summary-content">未设置</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 故事流图 -->
+                    <div id="overview-graph" class="overview-content">
+                        <div id="overview-graph-canvas" class="graph-canvas-large"></div>
+                    </div>
+                    
+                    <!-- 章节里程碑 -->
+                    <div id="overview-milestones" class="overview-content">
+                        <div id="overview-milestones-content" class="milestones-content-large"></div>
+                    </div>
+                    
+                    <!-- 知识库预览 -->
+                    <div id="overview-knowledge" class="overview-content">
+                        <!-- 统计信息卡片 -->
+                        <div class="knowledge-stats-section">
+                            <div class="detail-group">
+                                <h5><i class="fa fa-database"></i> 知识库统计</h5>
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-number" id="characters-count">0</div>
+                                        <div class="stat-label">角色数量</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-number" id="scenes-count">0</div>
+                                        <div class="stat-label">场景数量</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-number" id="items-count">0</div>
+                                        <div class="stat-label">物品数量</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 知识库内容预览 -->
+                        <div class="knowledge-content-section">
+                            <div class="detail-group">
+                                <h5><i class="fa fa-list"></i> 内容预览</h5>
+                                <div class="detail-content">
+                                    <div id="overview-knowledge-content" class="knowledge-preview">
+                                        <p class="placeholder">点击项目封面开始游戏后，知识库内容将在此显示</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeProjectOverviewModal()">关闭</button>
+                    <button type="button" id="start-project-btn" class="btn btn-primary">开始游戏</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关于对话框 -->
+        <div id="about-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>关于 ArtiMeow AI GalGamer RT</h3>
+                    <button class="btn-close" onclick="closeAboutModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="about-content">
+                        <div class="about-logo"><i class="fa fa-book"></i></div>
+                        <h4>ArtiMeow AI GalGamer RT</h4>
+                        <p class="about-subtitle">一个实时AIGC的GalGame框架</p>
+                        <br>
+                        
+                        <div class="about-info">
+                            <div class="info-row">
+                                <strong>版本：</strong><span id="app-version">1.0.0</span>
+                            </div>
+                            <div class="info-row">
+                                <strong>执行路径：</strong><span id="app-path">-</span>
+                            </div>
+                            <div class="info-row">
+                                <strong>Node.js版本：</strong><span id="node-version">-</span>
+                            </div>
+                            <div class="info-row">
+                                <strong>Electron版本：</strong><span id="electron-version">-</span>
+                            </div>
+                            <div class="info-row">
+                                <strong>Chrome版本：</strong><span id="chrome-version">-</span>
+                            </div>
+                        </div>
+                        
+                        <br>
+                        
+                        <div class="about-core-deps">
+                            <h5>核心依赖版本</h5>
+                            <div class="deps-list">
+                                <div class="dep-item">axios: <span id="axios-version">^1.11.0</span></div>
+                                <div class="dep-item">fs-extra: <span id="fs-extra-version">^11.3.1</span></div>
+                                <div class="dep-item">yauzl: <span id="yauzl-version">^3.2.0</span></div>
+                                <div class="dep-item">yazl: <span id="yazl-version">^3.3.1</span></div>
+                            </div>
+                        </div>
+                        
+                        <br>
+                        
+                        <div class="about-legal">
+                            <p><strong>作者：</strong>B5-Software</p>
+                            <p><strong>许可证：</strong>B5-Software FOKPL 1.0-Permissive</p>
+                            <p><strong>GitHub仓库：</strong><a href="#" id="github-link" onclick="openGitHubRepo()">ArtiMeow-AIGalGamerRT</a></p>
+                        </div>
+                        
+                        <br>
+                        <p class="about-description">使用AI技术创造无限可能的交互式视觉小说体验。</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="closeAboutModal()">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 背景音乐模态框 -->
+        <div id="bg-music-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-music"></i> 背景音乐</h3>
+                    <button class="btn-close" onclick="closeBgMusicModal()" title="关闭"><i class="fa fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="music-controls">
+                        <!-- 播放控制 -->
+                        <div class="control-section">
+                            <h5><i class="fas fa-play"></i> 播放控制</h5>
+                            <div class="control-buttons">
+                                <button id="music-play-btn" class="btn btn-primary" disabled>
+                                    <i class="fas fa-play"></i>
+                                    播放
+                                </button>
+                                <button id="music-pause-btn" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-pause"></i>
+                                    暂停
+                                </button>
+                                <button id="music-stop-btn" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-stop"></i>
+                                    停止
+                                </button>
+                                <button id="music-next-btn" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-step-forward"></i>
+                                    下一首
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 当前播放 -->
+                        <div class="current-track">
+                            <h5><i class="fas fa-music"></i> 当前播放</h5>
+                            <div id="current-track-info" class="track-info">
+                                <div class="track-name">暂无播放</div>
+                                <div class="track-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                    <div class="progress-time">00:00 / 00:00</div>
+                                </div>
+                            </div>
+                            <div class="volume-control">
+                                <i class="fas fa-volume-up"></i>
+                                <input type="range" id="volume-slider" min="0" max="100" value="50">
+                                <span id="volume-value">50%</span>
+                            </div>
+                        </div>
+
+                        <!-- 播放列表 -->
+                        <div class="playlist-section">
+                            <h5><i class="fas fa-list"></i> 播放列表</h5>
+                            <div class="playlist-actions">
+                                <button id="add-music-btn" class="btn btn-secondary">
+                                    <i class="fas fa-plus"></i>
+                                    添加音乐
+                                </button>
+                                <button id="clear-playlist-btn" class="btn btn-outline">
+                                    <i class="fas fa-trash"></i>
+                                    清空列表
+                                </button>
+                                <button id="import-playlist-btn" class="btn btn-outline">
+                                    <i class="fas fa-file-import"></i>
+                                    导入播放列表
+                                </button>
+                                <button id="export-playlist-btn" class="btn btn-outline">
+                                    <i class="fas fa-file-export"></i>
+                                    导出播放列表
+                                </button>
+                            </div>
+                            <div id="playlist" class="playlist">
+                                <div class="empty-playlist">
+                                    <i class="fas fa-music opacity-50"></i>
+                                    <p>播放列表为空</p>
+                                    <p class="text-muted">点击"添加音乐"来添加音频文件</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 播放设置 -->
+                        <div class="playback-settings">
+                            <h5><i class="fas fa-cog"></i> 播放设置</h5>
+                            <div class="settings-grid">
+                                <div class="setting-item">
+                                    <label>循环模式：</label>
+                                    <select id="loop-mode-select">
+                                        <option value="none">不循环</option>
+                                        <option value="single">单曲循环</option>
+                                        <option value="playlist">列表循环</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>播放模式：</label>
+                                    <select id="play-mode-select">
+                                        <option value="order">顺序播放</option>
+                                        <option value="random">随机播放</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>音频引擎：</label>
+                                    <select id="audio-engine-select">
+                                        <option value="electron">Electron默认</option>
+                                        <option value="directsound">DirectSound</option>
+                                        <option value="wasapi">WASAPI</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>
+                                        <input type="checkbox" id="auto-play-check">
+                                        自动播放下一首
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 播放信息面板 -->
+                    <div class="music-metadata-panel" id="music-metadata-panel">
+                        <div class="metadata-header">
+                            <i class="fa fa-info-circle"></i>
+                            <span>播放信息</span>
+                        </div>
+                        <div class="metadata-content" id="music-metadata-content">
+                            <div class="metadata-item">
+                                <span class="metadata-label">文件名：</span>
+                                <span class="metadata-value" id="metadata-filename">未选择文件</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">音频引擎：</span>
+                                <span class="metadata-value" id="metadata-engine">Electron默认</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">位深度：</span>
+                                <span class="metadata-value" id="metadata-bitdepth">16位</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">采样率：</span>
+                                <span class="metadata-value" id="metadata-samplerate">44.1 kHz</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeBgMusicModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+                <!-- 全局遮罩（首页封面生成等场景） -->
+        <div id="global-overlay" class="global-overlay hidden">
+            <div class="overlay-content">
+                <div class="spinner"></div>
+                <div class="overlay-text">处理中...</div>
+            </div>
+        </div>
+
+                <!-- 浮动面板：图谱 -->
+                <div id="graph-panel" class="panel-floating">
+                    <div class="panel-header">
+                        <strong><i class="fa fa-diagram-project"></i> 故事图谱</strong>
+                        <button class="btn-close" onclick="document.getElementById('graph-panel').classList.remove('active')"><i class="fa fa-xmark"></i></button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="graph-canvas" class="graph-canvas"></div>
+                    </div>
+                </div>
+
+                <!-- 浮动面板：里程碑 -->
+                <div id="milestones-panel" class="panel-floating">
+                    <div class="panel-header">
+                        <strong><i class="fa fa-flag"></i> 章节里程碑</strong>
+                        <button class="btn-close" onclick="document.getElementById('milestones-panel').classList.remove('active')"><i class="fa fa-xmark"></i></button>
+                    </div>
+                    <div id="milestones-body" class="panel-body"></div>
+                </div>
+
+    <script src="vendor/cytoscape/cytoscape.min.js"></script>
+    <script src="js/path-utils.js"></script>
+    <script src="js/music-visualizer.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/iot-manager.js"></script>
+    <script src="js/background-manager.js"></script>
+    <script src="js/project-manager.js"></script>
+    <script src="js/game-engine.js"></script>
+    <script src="js/ai-service.js"></script>
+    <script src="js/timeline.js"></script>
+    <script src="js/project-details.js"></script>
+    <script src="js/loader.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
