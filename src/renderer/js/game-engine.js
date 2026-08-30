@@ -189,28 +189,11 @@ class GameEngine {
 
     const btnSkip = document.getElementById('btn-skip');
     if (btnSkip) {
-      btnSkip.addEventListener('click', async () => {
-        this.skipMode = !this.skipMode;
-        btnSkip.classList.toggle('active', this.skipMode);
+      btnSkip.addEventListener('click', () => {
         if (this.skipMode) {
-          // 快进：优先选择第一个选项并快速推进，设定上限避免无限循环
-          let steps = 0;
-          while (this.skipMode && this.gameState==='playing' && steps < 10) {
-            // 若正在打字，立即完成
-            const dialogueText = document.getElementById('dialogue-text');
-            if (dialogueText && dialogueText.dataset.typing === 'true') {
-              dialogueText.textContent = dialogueText.dataset.fullText || '';
-              dialogueText.dataset.typing = 'false';
-            }
-            if (this.isWaitingForChoice && this.currentChoices.length>0) {
-              await this.selectChoice(0);
-            } else if (!this.isGenerating) {
-              await this.continueStory();
-            }
-            steps++;
-          }
-          this.skipMode = false;
-          btnSkip.classList.remove('active');
+          this.stopSkip();
+        } else {
+          this.startSkip();
         }
       });
     }
@@ -354,6 +337,13 @@ class GameEngine {
         return;
       }
 
+      // Ctrl 键快进 (按住 Ctrl 极速快进，松开停止)
+      if (e.key === 'Control' || e.ctrlKey) {
+        if (!this.skipMode) {
+          this.startSkip();
+        }
+      }
+
       switch (e.key) {
         case ' ': // 空格键
           e.preventDefault();
@@ -446,8 +436,17 @@ class GameEngine {
       }
     };
 
+    this.keyUpHandler = (e) => {
+      if (this.gameState !== 'playing') return;
+      // 松开 Ctrl 键停止快进
+      if (e.key === 'Control') {
+        this.stopSkip();
+      }
+    };
+
     // 使用捕获模式，确保事件被优先处理
     document.addEventListener('keydown', this.keyboardHandler, true);
+    document.addEventListener('keyup', this.keyUpHandler, true);
   }
 
   /**
@@ -1950,6 +1949,58 @@ class GameEngine {
   }
 
   /* ========================================================
+     快进与自动播放控制 (SKIP & AUTO)
+     ======================================================== */
+
+  /**
+   * 启动极速快进 (按住 Ctrl 或点击 SKIP 触发)
+   */
+  startSkip() {
+    if (this.skipMode || this.gameState !== 'playing') return;
+    this.skipMode = true;
+    const btnSkip = document.getElementById('btn-skip');
+    if (btnSkip) btnSkip.classList.add('active');
+    this.runSkipLoop();
+  }
+
+  /**
+   * 停止极速快进 (松开 Ctrl 触发)
+   */
+  stopSkip() {
+    this.skipMode = false;
+    const btnSkip = document.getElementById('btn-skip');
+    if (btnSkip) btnSkip.classList.remove('active');
+  }
+
+  /**
+   * 极速快进执行循环
+   */
+  async runSkipLoop() {
+    while (this.skipMode && this.gameState === 'playing') {
+      // 1. 如果正在打字，瞬间显示完整文本
+      const dialogueText = document.getElementById('dialogue-text');
+      if (dialogueText && dialogueText.dataset.typing === 'true') {
+        dialogueText.textContent = dialogueText.dataset.fullText || '';
+        dialogueText.dataset.typing = 'false';
+      }
+
+      // 2. 如果遇到选项分支，自动停止快进（等待玩家选择，符合 Galgame 习惯）
+      if (this.isWaitingForChoice && this.currentChoices.length > 0) {
+        this.stopSkip();
+        break;
+      }
+
+      // 3. 推进对白（消耗 Beat 对白小节或预载队列）
+      if (!this.isGenerating) {
+        await this.continueStory();
+      }
+
+      // 快进间隔 (60ms 极速连贯)
+      await new Promise(resolve => setTimeout(resolve, 60));
+    }
+  }
+
+  /* ========================================================
      多槽位存档与读档系统 (SAVE & LOAD SYSTEM)
      ======================================================== */
 
@@ -2343,6 +2394,9 @@ class GameEngine {
   destroy() {
     if (this.keyboardHandler) {
       document.removeEventListener('keydown', this.keyboardHandler, true);
+    }
+    if (this.keyUpHandler) {
+      document.removeEventListener('keyup', this.keyUpHandler, true);
     }
     
     this.exitGame();
