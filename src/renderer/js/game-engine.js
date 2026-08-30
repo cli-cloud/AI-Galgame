@@ -236,6 +236,59 @@ class GameEngine {
     if (gameArea) {
       gameArea.addEventListener('click', onAdvanceTrigger);
     }
+
+    // 对话历史 (Backlog) 按钮与控制
+    const btnLog = document.getElementById('btn-log');
+    if (btnLog) {
+      btnLog.addEventListener('click', () => this.toggleBacklog());
+    }
+
+    const backlogClose = document.getElementById('backlog-close');
+    if (backlogClose) {
+      backlogClose.addEventListener('click', () => this.hideBacklog());
+    }
+
+    const backlogScrollBottom = document.getElementById('backlog-scroll-bottom');
+    if (backlogScrollBottom) {
+      backlogScrollBottom.addEventListener('click', () => {
+        const content = document.getElementById('backlog-content');
+        if (content) content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+      });
+    }
+
+    // 鼠标滚轮上滑打开历史记录（经典 Galgame 体验）
+    window.addEventListener('wheel', (e) => {
+      if (this.gameState !== 'playing') return;
+      const backlogPanel = document.getElementById('backlog-panel');
+      const isBacklogOpen = backlogPanel && !backlogPanel.classList.contains('hidden');
+
+      if (!isBacklogOpen) {
+        // 滚轮向上滚动（deltaY < -15）且未在生成中：打开历史记录
+        if (e.deltaY < -15 && !this.isGenerating) {
+          this.showBacklog();
+        }
+      } else {
+        // 历史记录已打开时，如果已经在最底部且继续向下快速滚动，退出回看
+        const content = document.getElementById('backlog-content');
+        if (content && e.deltaY > 35) {
+          const isAtBottom = content.scrollHeight - content.scrollTop - content.clientHeight < 10;
+          if (isAtBottom) {
+            this.hideBacklog();
+          }
+        }
+      }
+    }, { passive: true });
+
+    // 鼠标右键关闭历史记录
+    window.addEventListener('contextmenu', (e) => {
+      if (this.gameState === 'playing') {
+        const backlogPanel = document.getElementById('backlog-panel');
+        if (backlogPanel && !backlogPanel.classList.contains('hidden')) {
+          e.preventDefault();
+          this.hideBacklog();
+        }
+      }
+    });
   }
 
   /**
@@ -244,6 +297,19 @@ class GameEngine {
   setupKeyboardControls() {
     this.keyboardHandler = (e) => {
       if (this.gameState !== 'playing') return;
+
+      const backlogPanel = document.getElementById('backlog-panel');
+      const isBacklogOpen = backlogPanel && !backlogPanel.classList.contains('hidden');
+
+      // 历史记录面板打开时的按键处理
+      if (isBacklogOpen) {
+        if (e.key === 'Escape' || e.key === 'PageDown' || e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          this.hideBacklog();
+          return;
+        }
+      }
 
       switch (e.key) {
         case ' ': // 空格键
@@ -280,6 +346,14 @@ class GameEngine {
           }
           break;
 
+        case 'PageUp':
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          e.stopPropagation();
+          this.showBacklog();
+          break;
+
         case 'ArrowUp':
           e.preventDefault();
           e.stopPropagation();
@@ -307,7 +381,11 @@ class GameEngine {
         case 'Escape':
           e.preventDefault();
           e.stopPropagation();
-          this.pauseGame();
+          if (isBacklogOpen) {
+            this.hideBacklog();
+          } else {
+            this.pauseGame();
+          }
           break;
       }
     };
@@ -657,6 +735,120 @@ class GameEngine {
     container.classList.add('hidden');
     spaceHint.classList.remove('hidden');
     choiceHint.classList.add('hidden');
+  }
+
+  /**
+   * 显示历史对话回看面板 (Backlog)
+   */
+  async showBacklog() {
+    const backlogPanel = document.getElementById('backlog-panel');
+    if (!backlogPanel) return;
+
+    await this.renderBacklog();
+    backlogPanel.classList.remove('hidden');
+
+    // 自动平滑滚动到底部（最近一句话）
+    const content = document.getElementById('backlog-content');
+    if (content) {
+      setTimeout(() => {
+        content.scrollTop = content.scrollHeight;
+      }, 50);
+    }
+  }
+
+  /**
+   * 隐藏历史对话回看面板
+   */
+  hideBacklog() {
+    const backlogPanel = document.getElementById('backlog-panel');
+    if (backlogPanel) {
+      backlogPanel.classList.add('hidden');
+    }
+  }
+
+  /**
+   * 切换历史对话回看面板
+   */
+  toggleBacklog() {
+    const backlogPanel = document.getElementById('backlog-panel');
+    if (!backlogPanel) return;
+    if (backlogPanel.classList.contains('hidden')) {
+      this.showBacklog();
+    } else {
+      this.hideBacklog();
+    }
+  }
+
+  /**
+   * 渲染历史对话记录 (Backlog)
+   */
+  async renderBacklog() {
+    const container = document.getElementById('backlog-content');
+    if (!container || !this.currentProject) return;
+
+    container.innerHTML = '';
+
+    // 获取所有时间线历史节点
+    let nodes = window.timeline?.nodes || [];
+    if (!nodes || nodes.length === 0) {
+      try {
+        nodes = await window.projectManager.getTimelineHistory(this.currentProject.id);
+      } catch (e) {
+        console.warn('获取Backlog历史失败:', e);
+      }
+    }
+
+    if (!nodes || nodes.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding: 50px 20px; color: var(--text-muted);">
+          <i class="fa fa-book-open" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5;"></i>
+          <p>暂无历史对话记录</p>
+        </div>
+      `;
+      return;
+    }
+
+    nodes.forEach((node, index) => {
+      const isCurrent = node.id === this.currentTimeline?.id;
+      const speaker = node.content?.speaker || (node.content?.dialogue ? '旁白' : '');
+      const dialogue = node.content?.dialogue || '';
+      const userChoice = node.content?.userChoice || node.userChoice || '';
+      const timeStr = node.timestamp ? Utils.formatTime(node.timestamp) : '';
+      const chapterSummary = node.content?.chapterSummary || '';
+
+      const itemDiv = document.createElement('div');
+      itemDiv.className = `backlog-item ${isCurrent ? 'is-current' : ''}`;
+
+      let choiceHtml = '';
+      if (userChoice) {
+        choiceHtml = `
+          <div class="backlog-choice-badge">
+            <i class="fa fa-hand-point-right"></i> 玩家选择：${Utils.escapeHtml(userChoice)}
+          </div>
+        `;
+      }
+
+      let summaryHtml = '';
+      if (chapterSummary && chapterSummary !== '故事的开始') {
+        summaryHtml = `<span class="backlog-summary-tag">第${index + 1}幕 · ${Utils.escapeHtml(chapterSummary)}</span>`;
+      }
+
+      const isNarrator = !speaker || speaker === '旁白' || speaker === '系统';
+
+      itemDiv.innerHTML = `
+        <div class="backlog-speaker-row">
+          <span class="backlog-speaker ${isNarrator ? 'narrator' : ''}">
+            ${isNarrator ? '<i class="fa fa-comment-dots"></i> 旁白' : `【${Utils.escapeHtml(speaker)}】`}
+          </span>
+          <span class="backlog-time">${Utils.escapeHtml(timeStr)}</span>
+        </div>
+        <div class="backlog-text">${Utils.escapeHtml(dialogue)}</div>
+        ${choiceHtml}
+        ${summaryHtml}
+      `;
+
+      container.appendChild(itemDiv);
+    });
   }
 
   /**

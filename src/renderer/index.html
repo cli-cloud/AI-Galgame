@@ -143,6 +143,24 @@
                 </div>
             </div>
 
+            <!-- 对话历史回看面板 (Backlog) -->
+            <div id="backlog-panel" class="backlog-panel hidden">
+                <div class="backlog-header">
+                    <div class="backlog-title"><i class="fa fa-clock-rotate-left"></i> 对话历史 (Backlog)</div>
+                    <div class="backlog-header-hints">
+                        <span class="backlog-hint-tag"><kbd>ESC</kbd> 或 点击关闭</span>
+                        <button id="backlog-close" class="btn-close" title="关闭"><i class="fa fa-xmark"></i></button>
+                    </div>
+                </div>
+                <div id="backlog-content" class="backlog-content">
+                    <!-- 动态生成对话与选择记录 -->
+                </div>
+                <div class="backlog-footer">
+                    <span><i class="fa fa-mouse"></i> 滚轮可上下滑动浏览历史记录</span>
+                    <button id="backlog-scroll-bottom" class="btn-tool-pill"><i class="fa fa-arrow-down"></i> 回到底部</button>
+                </div>
+            </div>
+
             <!-- 主游戏区域 -->
             <div class="game-area">
                 <!-- 背景图片 -->
@@ -185,14 +203,15 @@
                         <span id="space-hint">按空格继续</span>
                         <span id="choice-hint" class="hidden">使用方向键或鼠标选择</span>
                     </div>
-                                        <div class="hud-controls">
-                                                <button id="btn-custom" class="hud-btn" title="自定义输入"><i class="fa fa-keyboard"></i> CUSTOM</button>
-                                                <div id="custom-input" class="custom-input hidden">
-                                                    <input id="custom-text" type="text" placeholder="输入你的想法/选择..." maxlength="200" />
-                                                    <button id="custom-submit" class="btn btn-primary btn-sm"><i class="fa fa-paper-plane"></i></button>
-                                                </div>
-                                                <button id="btn-skip" class="hud-btn" title="快进"><i class="fa fa-forward"></i> SKIP</button>
-                                        </div>
+                    <div class="hud-controls">
+                        <button id="btn-log" class="hud-btn" title="对话历史 (滚轮上滑)"><i class="fa fa-clock-rotate-left"></i> LOG</button>
+                        <button id="btn-custom" class="hud-btn" title="自定义输入"><i class="fa fa-keyboard"></i> CUSTOM</button>
+                        <div id="custom-input" class="custom-input hidden">
+                            <input id="custom-text" type="text" placeholder="输入你的想法/选择..." maxlength="200" />
+                            <button id="custom-submit" class="btn btn-primary btn-sm"><i class="fa fa-paper-plane"></i></button>
+                        </div>
+                        <button id="btn-skip" class="hud-btn" title="快进"><i class="fa fa-forward"></i> SKIP</button>
+                    </div>
                 </div>
 
                 <!-- 科幻霓虹加载覆盖层（由 Loader 控制显示/隐藏） -->
