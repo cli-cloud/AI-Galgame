@@ -1202,13 +1202,14 @@ ${iotDataSection ? '9. ⚠️ 生理监测数据仅用于控制内容刺激度�
       return false;
     }
 
-    // 只要有 dialogue 和 choices 即可通过
+    // 只要有 dialogue 即可通过
     if (!response.dialogue || typeof response.dialogue !== 'string') {
       return false;
     }
 
-    if (!response.choices || !Array.isArray(response.choices) || response.choices.length === 0) {
-      return false;
+    // choices 允许为空数组（按空格或点击推进对白）
+    if (!Array.isArray(response.choices)) {
+      response.choices = [];
     }
 
     return true;
